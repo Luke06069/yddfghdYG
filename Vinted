@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vinted Tracker Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --teal: #00b5a3;
+    --teal-dark: #009688;
+    --teal-light: #e0f7f5;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --sold: #10b981;
+    --sold-bg: #ecfdf5;
+    --bought: #3b82f6;
+    --bought-bg: #eff6ff;
+    --listed: #f59e0b;
+    --listed-bg: #fffbeb;
+    --reserved: #8b5cf6;
+    --reserved-bg: #f5f3ff;
+    --red: #ef4444;
+    --red-bg: #fef2f2;
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 60px;
+  }
+
+  header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    padding: 24px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .logo {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px; font-weight: 700; color: #fff;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: var(--teal); border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; box-shadow: 0 4px 12px rgba(0,181,163,0.3);
+  }
+  .header-right { color: var(--muted); font-size: 13px; text-align: right; }
+  .header-right .date { font-weight: 600; font-size: 14px; color: #fff; margin-bottom: 2px; }
+  .sync-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600;
+    padding: 4px 10px; border-radius: 20px;
+    background: rgba(255,255,255,0.1); color: #94a3b8;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .sync-badge.connected { background: rgba(16,185,129,0.2); color: #6ee7b7; }
+  .sync-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  main { max-width: 1400px; margin: 0 auto; padding: 32px 20px; }
+
+  /* ── SUPABASE SETUP BANNER ── */
+  .setup-banner {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border: 1px solid #334155; border-radius: 20px;
+    padding: 20px 24px; margin-bottom: 24px;
+    display: flex; align-items: flex-start; gap: 16px;
+  }
+  .setup-banner.hidden { display: none; }
+  .setup-icon { font-size: 28px; flex-shrink: 0; margin-top: 2px; }
+  .setup-text h4 { color: #f1f5f9; font-family: 'Space Grotesk', sans-serif; font-size: 15px; margin-bottom: 6px; }
+  .setup-text p { color: #94a3b8; font-size: 13px; line-height: 1.6; }
+  .setup-text a { color: var(--teal); text-decoration: none; font-weight: 600; }
+  .setup-text code { background: #334155; color: #e2e8f0; padding: 2px 7px; border-radius: 6px; font-size: 12px; font-family: monospace; }
+  .setup-form-row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .setup-input {
+    flex: 1; min-width: 200px; padding: 10px 14px; border-radius: 10px;
+    border: 1px solid #334155; background: #0f172a; color: #e2e8f0;
+    font-family: inherit; font-size: 13px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .setup-input:focus { border-color: var(--teal); }
+  .btn-connect {
+    background: var(--teal); color: #fff; border: none;
+    padding: 10px 20px; border-radius: 10px; font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .btn-connect:hover { background: var(--teal-dark); }
+  .btn-dismiss { background: transparent; color: #64748b; border: 1px solid #334155; padding: 10px 16px; border-radius: 10px; font-family: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
+
+  /* ── UMSATZ ÜBERSICHT ── */
+  /* Große Umsatz-Karte oben */
+  .revenue-highlight {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    border-radius: 20px; padding: 24px 28px;
+    margin-bottom: 20px; border: 1px solid #1e293b;
+    display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 0;
+    position: relative; overflow: hidden;
+  }
+  .revenue-highlight::before {
+    content: ''; position: absolute; top: -40px; right: -40px;
+    width: 200px; height: 200px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,181,163,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .rev-item {
+    padding: 0 24px; border-right: 1px solid rgba(255,255,255,0.08);
+  }
+  .rev-item:first-child { padding-left: 0; }
+  .rev-item:last-child { border-right: none; }
+  .rev-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin-bottom: 10px; }
+  .rev-value {
+    font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700;
+    color: #f1f5f9; line-height: 1;
+  }
+  .rev-value.positive { color: #34d399; }
+  .rev-value.negative { color: #f87171; }
+  .rev-value.warn { color: #fbbf24; }
+  .rev-value.blue { color: #60a5fa; }
+  .rev-sub { font-size: 12px; color: #64748b; margin-top: 8px; }
+  .rev-margin-bar {
+    margin-top: 12px; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden;
+  }
+  .rev-margin-fill { height: 100%; background: var(--teal); border-radius: 2px; transition: width 0.5s ease; }
+
+  /* Status-Karten */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px; margin-bottom: 32px;
+  }
+  .stat-card {
+    background: var(--card); border-radius: 16px;
+    padding: 18px 20px; box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; gap: 14px;
+    transition: all 0.2s;
+  }
+  .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .stat-icon {
+    width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+  }
+  .stat-card.teal .stat-icon { background: var(--teal-light); }
+  .stat-card.green .stat-icon { background: var(--sold-bg); }
+  .stat-card.blue .stat-icon { background: var(--bought-bg); }
+  .stat-card.orange .stat-icon { background: var(--listed-bg); }
+  .stat-card.purple .stat-icon { background: var(--reserved-bg); }
+  .stat-info { flex: 1; min-width: 0; }
+  .stat-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 4px; }
+  .stat-value { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; color: var(--text); }
+
+  /* ── ADD PANEL ── */
+  .add-panel {
+    background: var(--card); border-radius: 20px;
+    box-shadow: var(--shadow); border: 1px solid var(--border);
+    margin-bottom: 32px; overflow: hidden;
+  }
+  .add-panel-header {
+    padding: 18px 24px; background: #fff;
+    border-bottom: 1px solid var(--border); cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .add-panel-header h3 {
+    font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600;
+    color: var(--text); display: flex; align-items: center; gap: 10px;
+  }
+  .chevron { transition: transform 0.2s; font-size: 14px; color: var(--muted); }
+  .chevron.open { transform: rotate(180deg); }
+  .add-form { padding: 24px; display: none; }
+  .add-form.open { display: block; }
+  
+  .form-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px; margin-bottom: 20px;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+  .form-group input, .form-group select {
+    padding: 10px 14px; border-radius: 12px;
+    border: 1.5px solid var(--border); font-family: inherit;
+    font-size: 14px; color: var(--text); background: #fff;
+    transition: all 0.2s; outline: none;
+  }
+  .form-group input:focus, .form-group select:focus {
+    border-color: var(--teal); box-shadow: 0 0 0 4px rgba(0,181,163,0.15);
+  }
+  .btn-add {
+    background: var(--text); color: #fff; border: none; padding: 12px 28px; border-radius: 12px;
+    font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+  }
+  .btn-add:hover { background: var(--teal); }
+
+  /* ── FILTER & TABLE ── */
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px; flex-wrap: wrap; gap: 16px;
+  }
+  .section-title {
+    font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .badge { background: #e2e8f0; color: var(--text); font-size: 13px; font-weight: 600; padding: 2px 10px; border-radius: 20px; }
+  .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--card); font-size: 13px; font-weight: 600; color: var(--muted);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .filter-btn:hover { border-color: var(--text); color: var(--text); }
+  .filter-btn.active { background: var(--text); border-color: var(--text); color: #fff; }
+
+  /* TABLE DESKTOP */
+  .table-wrap {
+    background: var(--card); border-radius: 20px;
+    box-shadow: var(--shadow); border: 1px solid var(--border); overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: #f8fafc; border-bottom: 1px solid var(--border); }
+  th { padding: 14px 16px; text-align: left; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  tbody tr:hover { background: #f8fafc; }
+  tbody tr:last-child { border-bottom: none; }
+  td { padding: 14px 16px; font-size: 14px; vertical-align: middle; }
+
+  /* EDITIERBARE INPUTS */
+  .inline-price-input {
+    width: 80px; padding: 6px 8px; border: 1.5px solid transparent;
+    background: transparent; font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600; font-size: 14px; border-radius: 8px; transition: all 0.15s;
+    cursor: pointer;
+  }
+  .inline-price-input:hover { border-color: var(--border); background: #f8fafc; }
+  .inline-price-input:focus { border-color: var(--teal); background: #fff; outline: none; box-shadow: 0 0 0 3px rgba(0,181,163,0.1); }
+  .td-ek .inline-price-input { color: var(--red); }
+  .td-vk .inline-price-input { color: var(--bought); }
+  .td-ek th, .th-ek { color: var(--red) !important; }
+
+  .status-select {
+    border: none; outline: none; cursor: pointer;
+    font-family: inherit; font-size: 12px; font-weight: 700;
+    border-radius: 12px; padding: 6px 10px 6px 22px;
+    appearance: none; background-repeat: no-repeat;
+    background-position: 8px center; background-size: 6px 6px;
+    transition: all 0.15s;
+  }
+  .status-select.s-sold     { background-color: var(--sold-bg);     color: var(--sold);     background-image: radial-gradient(circle, var(--sold) 50%, transparent 50%); }
+  .status-select.s-bought   { background-color: var(--bought-bg);   color: var(--bought);   background-image: radial-gradient(circle, var(--bought) 50%, transparent 50%); }
+  .status-select.s-listed   { background-color: var(--listed-bg);   color: var(--listed);   background-image: radial-gradient(circle, var(--listed) 50%, transparent 50%); }
+  .status-select.s-reserved { background-color: var(--reserved-bg); color: var(--reserved); background-image: radial-gradient(circle, var(--reserved) 50%, transparent 50%); }
+
+  .td-profit { font-family: 'Space Grotesk', sans-serif; font-weight: 700; }
+  .td-profit.pos { color: var(--sold); }
+  .td-profit.neg { color: var(--red); }
+
+  .btn-delete { background: none; border: none; cursor: pointer; color: #cbd5e1; font-size: 16px; padding: 6px; border-radius: 8px; }
+  .btn-delete:hover { color: var(--red); background: #fee2e2; }
+
+  /* MOBILE KARTEN */
+  .mobile-cards { display: none; flex-direction: column; gap: 14px; }
+
+  .mobile-card {
+    background: white; border: 1px solid var(--border); border-radius: 16px;
+    padding: 16px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .m-card-header { display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center; gap: 10px; }
+  .m-card-title { font-weight: 700; font-size: 15px; }
+  .m-card-sub { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+
+  /* Mobile Preis-Bearbeitung */
+  .m-price-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px; margin-bottom: 12px;
+  }
+  .m-price-edit-box {
+    background: var(--bg); border-radius: 12px; padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .m-price-edit-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--muted);
+  }
+  .m-price-edit-label.ek-label { color: var(--red); }
+  .m-price-edit-label.vk-label { color: var(--bought); }
+  .m-inline-input {
+    border: 1.5px solid transparent; border-radius: 8px;
+    background: transparent; font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px; font-weight: 700; padding: 2px 4px;
+    width: 100%; outline: none; transition: all 0.15s;
+    -webkit-appearance: none; -moz-appearance: textfield;
+  }
+  .m-inline-input:focus { border-color: var(--teal); background: #fff; box-shadow: 0 0 0 3px rgba(0,181,163,0.1); }
+  .m-inline-input.ek-inp { color: var(--red); }
+  .m-inline-input.vk-inp { color: var(--bought); }
+
+  .m-profit-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg); border-radius: 12px; padding: 10px 14px;
+    margin-bottom: 12px;
+  }
+  .m-profit-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .m-profit-value { font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 700; }
+
+  .m-card-footer { display: flex; justify-content: space-between; align-items: center; }
+
+  .empty-state { text-align: center; padding: 48px; color: var(--muted); }
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: #0f172a; color: #fff; padding: 12px 20px;
+    border-radius: 12px; font-size: 14px; font-weight: 600;
+    box-shadow: var(--shadow-lg); z-index: 9999;
+    transform: translateY(100px); opacity: 0; transition: all 0.3s;
+    max-width: calc(100vw - 48px);
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: var(--sold); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    header { padding: 16px; flex-direction: column; align-items: flex-start; gap: 10px; }
+    .header-right { text-align: left; }
+    main { padding: 20px 14px; }
+    .table-wrap { display: none; }
+    .mobile-cards { display: flex; }
+    .revenue-highlight {
+      grid-template-columns: 1fr 1fr;
+      gap: 16px; padding: 18px;
+    }
+    .rev-item { padding: 0; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 16px; }
+    .rev-item:nth-child(2n) { }
+    .rev-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .rev-item:nth-last-child(-n+2) { border-bottom: none; padding-bottom: 0; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .stat-card { padding: 14px; }
+    .stat-value { font-size: 20px; }
+    .stat-icon { width: 36px; height: 36px; font-size: 16px; }
+    .setup-form-row { flex-direction: column; }
+    .setup-input { min-width: 0; }
+    .filter-bar { gap: 6px; }
+    .filter-btn { padding: 7px 13px; font-size: 12px; }
+  }
+
+  @media (max-width: 480px) {
+    .revenue-highlight { grid-template-columns: 1fr 1fr; }
+    .rev-value { font-size: 20px; }
+  }
+
+  /* Input number arrows entfernen */
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+  input[type=number] { -moz-appearance: textfield; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="logo-icon">🛍️</div>Vinted Resell Tracker</div>
+  <div class="header-right">
+    <div class="date" id="today-date"></div>
+    <div class="sync-badge" id="sync-badge" onclick="toggleSetupBanner()">
+      <span class="dot"></span>
+      <span id="sync-status-text">Nur lokal</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- SUPABASE SETUP BANNER -->
+  <div class="setup-banner" id="setup-banner">
+    <div class="setup-icon">☁️</div>
+    <div class="setup-text" style="flex:1">
+      <h4>Daten auf allen Geräten synchronisieren</h4>
+      <p>
+        Erstelle ein kostenloses Konto bei <a href="https://supabase.com" target="_blank">supabase.com</a>,
+        lege ein neues Projekt an und erstelle eine Tabelle namens <code>vinted_items</code> mit den Spalten:
+        <code>id</code> (int8, primary), <code>date</code> (text), <code>brand</code> (text), <code>item</code> (text),
+        <code>size</code> (text), <code>condition</code> (text), <code>ek</code> (float8), <code>vk</code> (float8), <code>status</code> (text).
+        Dann trage hier deine Project-URL und den anon-Key ein.
+      </p>
+      <div class="setup-form-row">
+        <input class="setup-input" id="inp-url" placeholder="https://xxxx.supabase.co" type="url">
+        <input class="setup-input" id="inp-key" placeholder="eyJhbGciOiJ..." type="text">
+        <button class="btn-connect" onclick="connectSupabase()">🔗 Verbinden</button>
+        <button class="btn-dismiss" onclick="dismissBanner()">Später</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GROSSE UMSATZ-ÜBERSICHT -->
+  <div class="revenue-highlight" id="revenue-highlight">
+    <div class="rev-item">
+      <div class="rev-label">💸 Ausgaben (EK gesamt)</div>
+      <div class="rev-value blue" id="rv-ek">—</div>
+      <div class="rev-sub" id="rv-ek-sub">Alle eingekauften Artikel</div>
+    </div>
+    <div class="rev-item">
+      <div class="rev-label">💰 Umsatz realisiert</div>
+      <div class="rev-value positive" id="rv-vk">—</div>
+      <div class="rev-sub" id="rv-vk-sub">Aus verkauften Artikeln</div>
+    </div>
+    <div class="rev-item">
+      <div class="rev-label">📈 Reiner Gewinn</div>
+      <div class="rev-value" id="rv-profit">—</div>
+      <div class="rev-sub">EK bereits abgezogen</div>
+      <div class="rev-margin-bar"><div class="rev-margin-fill" id="rv-margin-fill" style="width:0%"></div></div>
+    </div>
+    <div class="rev-item">
+      <div class="rev-label">✨ Potenzial (offen)</div>
+      <div class="rev-value warn" id="rv-potential">—</div>
+      <div class="rev-sub" id="rv-potential-sub">Wenn alles verkauft wird</div>
+    </div>
+  </div>
+
+  <!-- STATUS KARTEN -->
+  <div class="stats-grid" id="stats-grid"></div>
+
+  <!-- ARTIKEL EINTRAGEN -->
+  <div class="add-panel">
+    <div class="add-panel-header" onclick="toggleForm()">
+      <h3>➕ Neuen Artikel eintragen</h3>
+      <span class="chevron" id="chevron">▼</span>
+    </div>
+    <div class="add-form" id="add-form">
+      <div class="form-grid">
+        <div class="form-group"><label>Datum Kauf</label><input type="date" id="f-date"></div>
+        <div class="form-group"><label>Marke</label><input type="text" id="f-brand" placeholder="z.B. Ralph Lauren"></div>
+        <div class="form-group"><label>Artikel</label><input type="text" id="f-item" placeholder="z.B. Pullover Grau"></div>
+        <div class="form-group"><label>Größe</label><input type="text" id="f-size" placeholder="M"></div>
+        <div class="form-group"><label>Zustand</label>
+          <select id="f-condition">
+            <option value="">— wählen —</option>
+            <option>Neu mit Etikett</option><option>Neu ohne Etikett</option>
+            <option>Sehr Gut</option><option>Gut</option><option>Befriedigend</option>
+          </select>
+        </div>
+        <div class="form-group"><label>EK Preis (€)</label><input type="number" id="f-ek" placeholder="0.00" step="0.01"></div>
+        <div class="form-group"><label>VK Preis (€)</label><input type="number" id="f-vk" placeholder="0.00" step="0.01"></div>
+        <div class="form-group"><label>Status</label>
+          <select id="f-status">
+            <option value="Gekauft">Gekauft</option>
+            <option value="Eingestellt">Eingestellt</option>
+            <option value="Reserviert">Reserviert</option>
+            <option value="Verkauft">Verkauft</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-add" onclick="addItem()">✓ Artikel speichern</button>
+    </div>
+  </div>
+
+  <!-- BESTAND -->
+  <div class="section-header">
+    <div class="section-title">Bestand <span class="badge" id="count-badge">0</span></div>
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="setFilter('all', this)">Alle</button>
+      <button class="filter-btn" onclick="setFilter('Gekauft', this)">📦 Gekauft</button>
+      <button class="filter-btn" onclick="setFilter('Eingestellt', this)">🏷️ Eingestellt</button>
+      <button class="filter-btn" onclick="setFilter('Reserviert', this)">🔒 Reserviert</button>
+      <button class="filter-btn" onclick="setFilter('Verkauft', this)">✓ Verkauft</button>
+    </div>
+  </div>
+
+  <!-- DESKTOP TABELLE -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Datum</th>
+          <th>Marke</th>
+          <th>Artikel</th>
+          <th>Größe</th>
+          <th>Zustand</th>
+          <th style="color:var(--red)">EK (€) ✏️</th>
+          <th style="color:var(--bought)">VK (€) ✏️</th>
+          <th>Status</th>
+          <th>Gewinn</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <!-- MOBILE KARTEN -->
+  <div class="mobile-cards" id="mobile-cards-list"></div>
+
+  <div class="empty-state" id="empty-state" style="display:none">
+    <div style="font-size:32px">📭</div>
+    <p style="margin-top:8px">Keine Artikel gefunden</p>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── SUPABASE CONFIG ──────────────────────────────────────────────────────────
+// Gespeicherte Keys laden (damit Verbindung nach Reload bestehen bleibt)
+let SUPABASE_URL = localStorage.getItem('sb_url') || "";
+let SUPABASE_ANON_KEY = localStorage.getItem('sb_key') || "";
+let supabaseClient = null;
+
+function initSupabase() {
+  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+    try {
+      supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      document.getElementById('sync-badge').className = 'sync-badge connected';
+      document.getElementById('sync-status-text').textContent = 'Cloud Sync ✓';
+      document.getElementById('setup-banner').classList.add('hidden');
+      return true;
+    } catch(e) { return false; }
+  }
+  return false;
+}
+
+async function connectSupabase() {
+  const url = document.getElementById('inp-url').value.trim();
+  const key = document.getElementById('inp-key').value.trim();
+  if (!url || !key) { showToast('Bitte URL und Key eingeben!', false); return; }
+  SUPABASE_URL = url; SUPABASE_ANON_KEY = key;
+  localStorage.setItem('sb_url', url); localStorage.setItem('sb_key', key);
+  if (initSupabase()) {
+    showToast('Supabase verbunden! Daten werden geladen...', true);
+    await loadData(); renderAll();
+  } else {
+    showToast('Verbindung fehlgeschlagen – Keys prüfen!', false);
+  }
+}
+
+function dismissBanner() { document.getElementById('setup-banner').classList.add('hidden'); }
+function toggleSetupBanner() {
+  const b = document.getElementById('setup-banner');
+  b.classList.toggle('hidden');
+}
+
+// ─── DATA ────────────────────────────────────────────────────────────────────
+let items = [];
+let activeFilter = 'all';
+
+async function loadData() {
+  if (supabaseClient) {
+    try {
+      let { data, error } = await supabaseClient.from('vinted_items').select('*').order('date', { ascending: false });
+      if (!error && data) { items = data; return; }
+    } catch(e) {}
+  }
+  const local = localStorage.getItem('vinted_items_db');
+  items = local ? JSON.parse(local) : [
+    { id: 1, date: '2026-05-26', brand: 'Polo Ralph Lauren', item: 'Sweatshirt Grau', size: 'S', condition: 'Gut', ek: 16.00, vk: 30.00, status: 'Verkauft' },
+    { id: 2, date: '2026-05-26', brand: 'Polo Ralph Lauren', item: '1/4 Zip Marineblau', size: 'S', condition: 'Gut', ek: 8.00, vk: 40.00, status: 'Gekauft' }
+  ];
+}
+
+async function saveData() {
+  localStorage.setItem('vinted_items_db', JSON.stringify(items));
+}
+
+// ─── STATS ───────────────────────────────────────────────────────────────────
+function calcStats() {
+  const sold = items.filter(i => i.status === 'Verkauft');
+  const unsold = items.filter(i => i.status !== 'Verkauft');
+  const totalEK = items.reduce((s, i) => s + (parseFloat(i.ek) || 0), 0);
+  const soldEK  = sold.reduce((s, i) => s + (parseFloat(i.ek) || 0), 0);
+  const totalVK = sold.reduce((s, i) => s + (parseFloat(i.vk) || 0), 0);
+  const totalProfit = totalVK - soldEK;
+  const potentialVK = unsold.reduce((s, i) => s + (parseFloat(i.vk) || 0), 0);
+  const marginPct = totalVK > 0 ? Math.min(100, Math.max(0, (totalProfit / totalVK) * 100)) : 0;
+  return {
+    total: items.length,
+    sold: sold.length,
+    bought: items.filter(i => i.status === 'Gekauft').length,
+    listed: items.filter(i => i.status === 'Eingestellt').length,
+    reserved: items.filter(i => i.status === 'Reserviert').length,
+    totalEK, soldEK, totalVK, totalProfit, potentialVK, marginPct
+  };
+}
+
+function renderStats() {
+  const s = calcStats();
+
+  // Große Umsatz-Karte
+  document.getElementById('rv-ek').textContent = fmt(s.totalEK) + ' €';
+  document.getElementById('rv-ek-sub').textContent = `${s.total} Artikel eingekauft`;
+  document.getElementById('rv-vk').textContent = fmt(s.totalVK) + ' €';
+  document.getElementById('rv-vk-sub').textContent = `${s.sold} Artikel verkauft`;
+
+  const profitEl = document.getElementById('rv-profit');
+  profitEl.textContent = (s.totalProfit >= 0 ? '+' : '') + fmt(s.totalProfit) + ' €';
+  profitEl.className = 'rev-value ' + (s.totalProfit >= 0 ? 'positive' : 'negative');
+
+  document.getElementById('rv-potential').textContent = fmt(s.potentialVK) + ' €';
+  document.getElementById('rv-potential-sub').textContent = `${s.total - s.sold} Artikel noch offen`;
+  document.getElementById('rv-margin-fill').style.width = s.marginPct.toFixed(1) + '%';
+
+  // Status-Karten
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card teal">
+      <div class="stat-icon">📦</div>
+      <div class="stat-info"><div class="stat-label">Gesamt</div><div class="stat-value">${s.total}</div></div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-icon">🛒</div>
+      <div class="stat-info"><div class="stat-label">Gekauft</div><div class="stat-value">${s.bought}</div></div>
+    </div>
+    <div class="stat-card orange">
+      <div class="stat-icon">🏷️</div>
+      <div class="stat-info"><div class="stat-label">Eingestellt · Reserviert</div><div class="stat-value">${s.listed + s.reserved}</div></div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-icon">✅</div>
+      <div class="stat-info"><div class="stat-label">Verkauft</div><div class="stat-value">${s.sold}</div></div>
+    </div>
+  `;
+}
+
+// ─── RENDER LISTEN ───────────────────────────────────────────────────────────
+function fmt(n) { return Number(n).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+function statusSelectClass(s) {
+  return { 'Verkauft': 's-sold', 'Gekauft': 's-bought', 'Eingestellt': 's-listed', 'Reserviert': 's-reserved' }[s] || '';
+}
+
+function renderLists() {
+  const filtered = activeFilter === 'all' ? items : items.filter(i => i.status === activeFilter);
+  document.getElementById('count-badge').textContent = filtered.length;
+
+  const tbody  = document.getElementById('table-body');
+  const mList  = document.getElementById('mobile-cards-list');
+  const empty  = document.getElementById('empty-state');
+
+  if (!filtered.length) {
+    tbody.innerHTML = ''; mList.innerHTML = '';
+    empty.style.display = 'block'; return;
+  }
+  empty.style.display = 'none';
+
+  // Desktop Tabelle
+  tbody.innerHTML = filtered.map((item, idx) => {
+    const profit = (parseFloat(item.vk) || 0) - (parseFloat(item.ek) || 0);
+    return `<tr>
+      <td style="color:var(--muted);font-size:12px">${idx + 1}</td>
+      <td style="color:var(--muted);font-size:13px">${item.date ? new Date(item.date).toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'}) : '—'}</td>
+      <td style="font-weight:600">${esc(item.brand)}</td>
+      <td>${esc(item.item)}</td>
+      <td><span class="badge">${esc(item.size)}</span></td>
+      <td style="color:var(--muted);font-size:13px">${esc(item.condition)}</td>
+      <td class="td-ek"><input type="number" class="inline-price-input" value="${item.ek}" step="0.01" onchange="updatePrice(${item.id}, 'ek', this.value)" title="EK Preis bearbeiten"></td>
+      <td class="td-vk"><input type="number" class="inline-price-input" value="${item.vk}" step="0.01" onchange="updatePrice(${item.id}, 'vk', this.value)" title="VK Preis bearbeiten"></td>
+      <td>
+        <select class="status-select ${statusSelectClass(item.status)}" onchange="updateStatus(${item.id}, this.value)">
+          <option value="Gekauft"    ${item.status==='Gekauft'?'selected':''}>📦 Gekauft</option>
+          <option value="Eingestellt"${item.status==='Eingestellt'?'selected':''}>🏷️ Eingestellt</option>
+          <option value="Reserviert" ${item.status==='Reserviert'?'selected':''}>🔒 Reserviert</option>
+          <option value="Verkauft"   ${item.status==='Verkauft'?'selected':''}>✓ Verkauft</option>
+        </select>
+      </td>
+      <td class="td-profit ${profit >= 0 ? 'pos' : 'neg'}">${profit >= 0 ? '+' : ''}${fmt(profit)} €</td>
+      <td><button class="btn-delete" onclick="deleteItem(${item.id})">🗑</button></td>
+    </tr>`;
+  }).join('');
+
+  // Mobile Karten
+  mList.innerHTML = filtered.map(item => {
+    const profit = (parseFloat(item.vk) || 0) - (parseFloat(item.ek) || 0);
+    return `
+      <div class="mobile-card">
+        <div class="m-card-header">
+          <div class="m-card-title">${esc(item.brand)}</div>
+          <select class="status-select ${statusSelectClass(item.status)}" onchange="updateStatus(${item.id}, this.value)">
+            <option value="Gekauft"    ${item.status==='Gekauft'?'selected':''}>📦 Gekauft</option>
+            <option value="Eingestellt"${item.status==='Eingestellt'?'selected':''}>🏷️ Eingestellt</option>
+            <option value="Reserviert" ${item.status==='Reserviert'?'selected':''}>🔒 Reserviert</option>
+            <option value="Verkauft"   ${item.status==='Verkauft'?'selected':''}>✓ Verkauft</option>
+          </select>
+        </div>
+        <div class="m-card-sub">${esc(item.item)} · Gr. ${esc(item.size)} · ${esc(item.condition)}</div>
+
+        <div class="m-price-grid">
+          <div class="m-price-edit-box">
+            <div class="m-price-edit-label ek-label">✏️ EK Preis (€)</div>
+            <input type="number" class="m-inline-input ek-inp"
+              value="${item.ek}" step="0.01"
+              onchange="updatePrice(${item.id}, 'ek', this.value)"
+              inputmode="decimal">
+          </div>
+          <div class="m-price-edit-box">
+            <div class="m-price-edit-label vk-label">✏️ VK Preis (€)</div>
+            <input type="number" class="m-inline-input vk-inp"
+              value="${item.vk}" step="0.01"
+              onchange="updatePrice(${item.id}, 'vk', this.value)"
+              inputmode="decimal">
+          </div>
+        </div>
+
+        <div class="m-profit-row">
+          <span class="m-profit-label">Gewinn</span>
+          <span class="m-profit-value" style="color:${profit >= 0 ? 'var(--sold)' : 'var(--red)'}">
+            ${profit >= 0 ? '+' : ''}${fmt(profit)} €
+          </span>
+        </div>
+
+        <div class="m-card-footer">
+          <span style="font-size:12px;color:var(--muted)">${item.date ? new Date(item.date).toLocaleDateString('de-DE') : '—'}</span>
+          <button class="btn-delete" onclick="deleteItem(${item.id})">🗑 Löschen</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ─── ACTIONS ─────────────────────────────────────────────────────────────────
+async function updatePrice(id, type, value) {
+  const numValue = parseFloat(value) || 0;
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  item[type] = numValue;
+  if (supabaseClient) {
+    await supabaseClient.from('vinted_items').update({ [type]: numValue }).eq('id', id);
+  }
+  saveData(); renderStats(); renderLists();
+  showToast(`${type.toUpperCase()} auf ${fmt(numValue)} € gespeichert!`, true);
+}
+
+async function updateStatus(id, newStatus) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  item.status = newStatus;
+  if (supabaseClient) {
+    await supabaseClient.from('vinted_items').update({ status: newStatus }).eq('id', id);
+  }
+  saveData(); renderStats(); renderLists();
+  showToast('Status geändert!', true);
+}
+
+async function addItem() {
+  const brand   = document.getElementById('f-brand').value.trim();
+  const itemTxt = document.getElementById('f-item').value.trim();
+  if (!brand || !itemTxt) { showToast('Bitte Marke und Artikel angeben!', false); return; }
+
+  const newItem = {
+    id: items.length ? Math.max(...items.map(i => i.id)) + 1 : 1,
+    date: document.getElementById('f-date').value,
+    brand, item: itemTxt,
+    size: document.getElementById('f-size').value.trim() || '—',
+    condition: document.getElementById('f-condition').value || '—',
+    ek: parseFloat(document.getElementById('f-ek').value) || 0,
+    vk: parseFloat(document.getElementById('f-vk').value) || 0,
+    status: document.getElementById('f-status').value
+  };
+
+  if (supabaseClient) {
+    const { data, error } = await supabaseClient.from('vinted_items').insert([newItem]).select();
+    if (!error && data && data[0]) newItem.id = data[0].id;
+  }
+  items.unshift(newItem);
+  saveData(); renderAll(); clearForm();
+  showToast('Artikel erfolgreich hinzugefügt! ✓', true);
+}
+
+async function deleteItem(id) {
+  if (!confirm('Artikel wirklich löschen?')) return;
+  items = items.filter(i => i.id !== id);
+  if (supabaseClient) { await supabaseClient.from('vinted_items').delete().eq('id', id); }
+  saveData(); renderAll();
+  showToast('Artikel gelöscht.', false);
+}
+
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-bar .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLists();
+}
+function toggleForm() {
+  document.getElementById('add-form').classList.toggle('open');
+  document.getElementById('chevron').classList.toggle('open');
+}
+function clearForm() {
+  ['f-brand','f-item','f-size','f-ek','f-vk'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-condition').value = '';
+  document.getElementById('f-status').value = 'Gekauft';
+}
+function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '—'; }
+function showToast(msg, ok) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (ok ? ' success' : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+function renderAll() { renderStats(); renderLists(); }
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+document.getElementById('today-date').textContent = new Date().toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' });
+document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+
+// Vorausgefüllte Setup-Inputs wenn Keys vorhanden
+if (SUPABASE_URL) document.getElementById('inp-url').value = SUPABASE_URL;
+if (SUPABASE_ANON_KEY) document.getElementById('inp-key').value = SUPABASE_ANON_KEY;
+
+(async () => {
+  initSupabase();
+  await loadData();
+  renderAll();
+  // Banner verstecken wenn bereits verbunden
+  if (supabaseClient) document.getElementById('setup-banner').classList.add('hidden');
+})();
+</script>
+</body>
+</html>
