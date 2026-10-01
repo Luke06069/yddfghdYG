@@ -3,54 +3,96 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#f1f5f9" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0b1120" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#eef2f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)">
 <title>Fahrstunden-Checkliste</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
 <style>
+  /* Layout: eine Spalte; oben klebt der Fortschritt (Ring + Straße), darunter die 12 Themenkarten.
+     Schrift: Barlow, angelehnt an Straßenschilder; Akzent: Verkehrszeichen-Blau. */
   :root {
-    --bg: #f1f5f9;
+    --font-display: "Barlow Condensed", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --bg: #eef2f6;
     --card: #ffffff;
-    --text: #0f172a;
-    --muted: #64748b;
-    --border: #e2e8f0;
-    --accent: #2563eb;
-    --accent-soft: rgb(37 99 235 / .12);
-    --done: #16a34a;
+    --text: #0f1a2b;
+    --muted: #5b6b80;
+    --border: #dbe3ec;
+    --accent: #0e5a9c;
+    --accent-soft: rgb(14 90 156 / .12);
+    --done: #15803d;
     --done-soft: #dcfce7;
-    --road: #334155;
-    --toast-bg: #0f172a;
+    --danger: #b91c1c;
+    --road: #3a4656;
+    --glass: #dbeafe;
+    --warn-bg: #fef3c7;
+    --warn-fg: #78350f;
+    --toast-bg: #0f1a2b;
     --toast-fg: #f8fafc;
     --toast-action: #93c5fd;
-    --shadow: 0 1px 2px rgb(15 23 42 / .06), 0 4px 14px rgb(15 23 42 / .06);
+    --shadow: 0 1px 2px rgb(15 26 43 / .06), 0 4px 14px rgb(15 26 43 / .06);
     --ease-out: cubic-bezier(.2, .8, .2, 1);
     --ease-bounce: cubic-bezier(.34, 1.56, .64, 1);
   }
 
   @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0b1120;
-      --card: #131c2e;
+    :root:not([data-theme="light"]) {
+      --bg: #0b1220;
+      --card: #131d2f;
       --text: #e2e8f0;
       --muted: #94a3b8;
-      --border: #1f2a40;
-      --accent: #60a5fa;
-      --accent-soft: rgb(96 165 250 / .16);
+      --border: #1f2b42;
+      --accent: #5fa8e6;
+      --accent-soft: rgb(95 168 230 / .16);
       --done: #22c55e;
       --done-soft: rgb(34 197 94 / .15);
+      --danger: #f87171;
       --road: #1e293b;
+      --glass: #bfdbfe;
+      --warn-bg: #422006;
+      --warn-fg: #fde68a;
       --toast-bg: #e2e8f0;
-      --toast-fg: #0f172a;
-      --toast-action: #1d4ed8;
+      --toast-fg: #0f1a2b;
+      --toast-action: #0e5a9c;
       --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 4px 14px rgb(0 0 0 / .25);
+      color-scheme: dark;
     }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1220;
+    --card: #131d2f;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --border: #1f2b42;
+    --accent: #5fa8e6;
+    --accent-soft: rgb(95 168 230 / .16);
+    --done: #22c55e;
+    --done-soft: rgb(34 197 94 / .15);
+    --danger: #f87171;
+    --road: #1e293b;
+    --glass: #bfdbfe;
+    --warn-bg: #422006;
+    --warn-fg: #fde68a;
+    --toast-bg: #e2e8f0;
+    --toast-fg: #0f1a2b;
+    --toast-action: #0e5a9c;
+    --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 4px 14px rgb(0 0 0 / .25);
+    color-scheme: dark;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
-  html { -webkit-text-size-adjust: 100%; }
+  :root {
+    -webkit-text-size-adjust: 100%;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 
   body {
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-body);
+    font-size: 15px;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
@@ -62,16 +104,17 @@
   .page {
     max-width: 640px;
     margin: 0 auto;
-    padding: 0 16px calc(32px + env(safe-area-inset-bottom));
+    padding-inline: 16px;
+    padding-block: 0 32px;
   }
 
   /* ---------- Kopfbereich mit Fortschritt ---------- */
   .hero {
     position: sticky;
-    top: 0;
+    top: env(safe-area-inset-top, 0px);
     z-index: 5;
     margin: 0 -16px 16px;
-    padding: calc(14px + env(safe-area-inset-top)) 16px 14px;
+    padding: 14px 16px;
     background: color-mix(in srgb, var(--bg) 92%, transparent);
     -webkit-backdrop-filter: blur(14px);
     backdrop-filter: blur(14px);
@@ -98,17 +141,18 @@
     inset: 0;
     display: grid;
     place-items: center;
+    font-family: var(--font-display);
     font-weight: 800;
-    font-size: 20px;
+    font-size: 24px;
     font-variant-numeric: tabular-nums;
   }
-  .ring-label small { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .ring-label small { font-size: 14px; font-weight: 600; color: var(--muted); }
   .ring-label .count { display: inline-block; }
   .ring-label .count.bump { animation: bump .45s var(--ease-bounce); }
 
   .hero-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-  h1 { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
-  .pct { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  h1 { font-family: var(--font-display); font-size: 26px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; line-height: 1.1; }
+  .pct { flex: none; white-space: nowrap; font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
   .status { margin-top: 2px; font-size: 13px; color: var(--muted); min-height: 1.4em; }
 
   /* Straße mit Auto */
@@ -139,7 +183,7 @@
   }
   .car svg { display: block; width: 100%; height: 100%; overflow: visible; }
   .car-body { fill: var(--accent); }
-  .car-window { fill: #dbeafe; }
+  .car-window { fill: var(--glass); }
   .wheel { transform-box: fill-box; transform-origin: center; }
   .road.moving .wheel { animation: spin .35s linear infinite; }
   .road.moving.back .wheel { animation-direction: reverse; }
@@ -208,8 +252,9 @@
     border-radius: 50%;
     border: 2px solid var(--border);
     background: var(--card);
-    font-weight: 800;
-    font-size: 17px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 21px;
     color: var(--muted);
     transition: background-color .35s, border-color .35s, color .35s;
   }
@@ -257,8 +302,8 @@
     text-transform: uppercase;
   }
   .topic.next .tag { display: inline-block; }
-  .title { font-size: 16px; font-weight: 650; line-height: 1.3; overflow-wrap: anywhere; }
-  .desc { margin-top: 2px; font-size: 13px; color: var(--muted); }
+  .title { font-size: 17px; font-weight: 600; text-wrap: balance; line-height: 1.3; overflow-wrap: anywhere; }
+  .desc { margin-top: 2px; font-size: 14px; color: var(--muted); }
   .desc[hidden] { display: none; }
 
   .meta {
@@ -269,8 +314,8 @@
   .meta > div { min-height: 0; overflow: hidden; }
   .date {
     margin-top: 4px;
-    font-size: 13px;
-    font-weight: 650;
+    font-size: 14px;
+    font-weight: 600;
     color: var(--done);
     opacity: 0;
     transform: translateY(-4px);
@@ -326,12 +371,14 @@
     font-weight: 600;
   }
   .reset:disabled { opacity: .45; cursor: default; }
+  .reset.armed { border-color: var(--danger); color: var(--danger); }
+  .reset:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   .warn {
     margin-bottom: 12px;
     padding: 10px 12px;
     border-radius: 10px;
-    background: #fef3c7;
-    color: #78350f;
+    background: var(--warn-bg);
+    color: var(--warn-fg);
     font-size: 13px;
   }
   .warn[hidden] { display: none; }
@@ -395,7 +442,7 @@
   }
   .overlay.show .overlay-card { transform: none; }
   .trophy { display: inline-block; font-size: 64px; line-height: 1; animation: trophy 1.8s ease-in-out infinite; }
-  .overlay-card h2 { margin-top: 12px; font-size: 22px; font-weight: 800; }
+  .overlay-card h2 { margin-top: 12px; font-family: var(--font-display); font-size: 28px; font-weight: 800; text-wrap: balance; }
   .overlay-card p { margin-top: 6px; color: var(--muted); }
   .overlay-card button {
     margin-top: 20px;
@@ -493,12 +540,12 @@
 
   <p class="warn" id="warn" hidden>⚠️ Dein Browser erlaubt hier kein Speichern (z.&nbsp;B. privater Modus). Dein Fortschritt geht beim Schließen verloren.</p>
 
-  <p class="hint">Tippe auf ein Thema, um es abzuhaken. Mit dem Stift kannst du es umbenennen.</p>
+  <p class="hint">Tippe auf ein Thema, um es abzuhaken. Mit dem Stift benennst du es um.</p>
 
   <ol class="topics" id="topics"></ol>
 
   <div class="footer">
-    <span>Wird automatisch auf diesem Gerät gespeichert.</span>
+    <span id="saveInfo" aria-live="polite">Wird automatisch auf diesem Gerät gespeichert.</span>
     <button class="reset" id="reset" type="button">Alles zurücksetzen</button>
   </div>
 </div>
@@ -564,12 +611,16 @@
     return state;
   }
 
-  function load() {
+  // Lokal (localStorage) für sofortiges Laden. Läuft die Seite als Artifact in claude.ai,
+  // wird zusätzlich im Claude-Konto gespeichert, damit Handy und PC denselben Stand haben.
+  let localOk = true;
+
+  function readLocal() {
     let raw = null;
     try {
       raw = localStorage.getItem(STORAGE_KEY);
     } catch (e) {
-      showStorageWarning();
+      localOk = false;
       return emptyState();
     }
     if (!raw) return emptyState();
@@ -580,17 +631,132 @@
     }
   }
 
-  function persist() {
+  function writeLocal() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localOk = true;
     } catch (e) {
-      showStorageWarning();
+      localOk = false;
+    }
+    updateWarn();
+  }
+
+  let state = readLocal();
+
+  let remoteRef = null;     // Dokument im Claude-Konto, falls verfügbar
+  let remotePending = false; // Verbindung wird noch aufgebaut
+  let synced = false;       // erster Stand aus dem Konto ist da
+  let dirty = false;        // Änderungen, die noch nicht im Konto sind
+  let writing = false;
+  let writeAgain = false;
+
+  function persist() {
+    dirty = true;
+    writeLocal();
+    flushRemote();
+  }
+
+  function setSaveInfo(mode) {
+    const texts = {
+      local: 'Wird automatisch auf diesem Gerät gespeichert.',
+      saving: 'Speichert …',
+      cloud: 'Gespeichert in deinem Claude-Konto, auf Handy und PC gleich.',
+      error: localOk
+        ? 'Speichern im Konto hat nicht geklappt. Auf diesem Gerät ist alles gesichert.'
+        : 'Speichern hat nicht geklappt. Lade die Seite neu und versuch es noch einmal.',
+    };
+    $('saveInfo').textContent = texts[mode];
+  }
+
+  function updateWarn() {
+    $('warn').hidden = localOk || remotePending || Boolean(remoteRef && synced);
+  }
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  async function setWithRetry(body) {
+    try {
+      await remoteRef.set(body);
+    } catch (e) {
+      const final = ['invalid_argument', 'quota_exceeded', 'resource_exhausted', 'revoked', 'not_granted'];
+      if (e && final.includes(e.code)) throw e;
+      await sleep(400 + Math.random() * 800);
+      await remoteRef.set(body);
     }
   }
 
-  function showStorageWarning() { $('warn').hidden = false; }
+  async function flushRemote() {
+    if (!remoteRef || !synced) return;
+    if (writing) { writeAgain = true; return; }
+    writing = true;
+    setSaveInfo('saving');
+    try {
+      do {
+        writeAgain = false;
+        await setWithRetry(JSON.parse(JSON.stringify(state)));
+      } while (writeAgain);
+      dirty = false;
+      setSaveInfo('cloud');
+    } catch (e) {
+      setSaveInfo('error');
+    } finally {
+      writing = false;
+    }
+  }
 
-  let state = load();
+  function applyRemote(snap) {
+    // Eigene Schreibvorgänge kommen als Echo zurück, die ignorieren wir
+    if (snap.metadata.hasPendingWrites || writing) return;
+
+    if (!snap.exists) {
+      if (snap.metadata.fromCache) return; // noch nicht sicher, ob es wirklich leer ist
+      if (!synced) {
+        synced = true;
+        updateWarn();
+        // Erstes Mal im Konto: bisherigen Stand von diesem Gerät mitnehmen
+        if (doneCount() || Object.keys(state.names).length) flushRemote();
+        else setSaveInfo('cloud');
+      }
+      return;
+    }
+
+    const remote = sanitize(snap.data());
+    if (!synced) {
+      synced = true;
+      updateWarn();
+      if (dirty) { flushRemote(); return; } // hier schon abgehakt, bevor das Konto antwortete
+    }
+    if (JSON.stringify(remote) !== JSON.stringify(state)) {
+      state = remote;
+      writeLocal();
+      renderAll();
+      updateProgress();
+    }
+    setSaveInfo('cloud');
+  }
+
+  async function connectRemote() {
+    const claude = window.claude;
+    if (!claude || typeof claude.use !== 'function') return;
+    remotePending = true;
+    try {
+      const [db, user] = await Promise.all([claude.use('db'), claude.use('user')]);
+      const uid = db && user ? await user.id() : null;
+      if (!uid) return;
+      remoteRef = db.doc(`data/users/${uid}/fahrstunden`);
+      remoteRef.onSnapshot(applyRemote, () => {
+        remoteRef = null;
+        synced = false;
+        setSaveInfo(localOk ? 'local' : 'error');
+        updateWarn();
+      });
+    } catch (e) {
+      remoteRef = null;
+    } finally {
+      remotePending = false;
+      updateWarn();
+    }
+  }
 
   // ---------- Konfetti ----------
   const Confetti = (() => {
@@ -750,11 +916,11 @@
   function statusText(n) {
     const left = TOTAL - n;
     if (n === 0) return 'Hak ab, was du in der Fahrstunde geschafft hast.';
-    if (n === TOTAL) return 'Alles erledigt – bereit für die Prüfung! 🎉';
-    if (left === 1) return 'Nur noch 1 Thema – du packst das! 🔥';
+    if (n === TOTAL) return 'Alles erledigt. Bereit für die Prüfung! 🎉';
+    if (left === 1) return 'Nur noch 1 Thema. Du packst das! 🔥';
     if (n <= 3) return `Guter Start! Noch ${left} Themen.`;
     if (n <= 7) return `Läuft bei dir! Noch ${left} Themen.`;
-    return `Fast geschafft – noch ${left} Themen!`;
+    return `Fast geschafft! Noch ${left} Themen.`;
   }
 
   function updateProgress() {
@@ -764,7 +930,7 @@
     ringFg.style.strokeDashoffset = RING_CIRC * (1 - p);
     $('pct').textContent = `${Math.round(p * 100)} %`;
     $('status').textContent = statusText(n);
-    $('reset').disabled = n === 0;
+    resetBtn.disabled = n === 0;
 
     if (n !== lastCount) {
       tweenCount(n);
@@ -906,9 +1072,28 @@
   });
 
   // ---------- Zurücksetzen ----------
-  $('reset').addEventListener('click', () => {
+  // Zweistufig statt confirm(), das im Artifact-Viewer nicht angezeigt wird
+  const resetBtn = $('reset');
+  let resetArmed = false;
+  let resetTimer = 0;
+
+  function disarmReset() {
+    resetArmed = false;
+    clearTimeout(resetTimer);
+    resetBtn.textContent = 'Alles zurücksetzen';
+    resetBtn.classList.remove('armed');
+  }
+
+  resetBtn.addEventListener('click', () => {
     if (!doneCount()) return;
-    if (!confirm('Wirklich alle Häkchen entfernen? Deine eigenen Themennamen bleiben erhalten.')) return;
+    if (!resetArmed) {
+      resetArmed = true;
+      resetBtn.textContent = 'Wirklich alle Haken entfernen?';
+      resetBtn.classList.add('armed');
+      resetTimer = setTimeout(disarmReset, 4000);
+      return;
+    }
+    disarmReset();
     const prev = { ...state.done };
     state.done = {};
     persist();
@@ -953,7 +1138,7 @@
   // Änderungen aus einem anderen Tab übernehmen
   window.addEventListener('storage', e => {
     if (e.key !== STORAGE_KEY) return;
-    state = load();
+    state = readLocal();
     renderAll();
     updateProgress();
   });
@@ -964,6 +1149,8 @@
   renderAll();
   // Zwei Frames warten, damit Ring, Zähler und Auto vom Start aus zum gespeicherten Stand animieren
   requestAnimationFrame(() => requestAnimationFrame(updateProgress));
+  updateWarn();
+  connectRemote();
 })();
 </script>
 </body>
