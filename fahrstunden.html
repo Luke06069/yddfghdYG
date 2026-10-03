@@ -500,37 +500,30 @@
   }
   .plan[hidden] { display: none; }
   .plan-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-  .plan-sub { font-size: 13px; color: var(--muted); }
-  .plan-sub[hidden] { display: none; }
-  .locs { display: grid; gap: 6px; }
-  .loc {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    width: 100%;
-    padding: 7px 10px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--card);
-    text-align: left;
-    transition: background-color .2s, border-color .2s;
-  }
-  .loc[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); }
-  .loc:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-  .loc-name { min-width: 0; font-weight: 700; font-size: 14px; }
-  .loc-name small, .loc-end small { display: block; font-size: 11px; font-weight: 500; color: var(--muted); }
-  .loc-name small { white-space: nowrap; }
-  .loc-end { flex: none; text-align: right; }
-  .loc-end strong {
-    display: block;
+  .plan-date {
     font-family: var(--font-display);
-    font-size: 17px;
-    font-weight: 700;
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.1;
     color: var(--accent);
     font-variant-numeric: tabular-nums;
   }
-  .loc-end.missing strong { color: var(--warn-fg); }
+  .plan-sub { margin-top: 2px; font-size: 13px; color: var(--muted); }
+  .plan-alert { padding: 8px 10px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-fg); font-size: 12px; }
+  .plan-alert[hidden] { display: none; }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 3px; border-radius: 9px; background: var(--border); }
+  .seg-btn {
+    padding: 5px 4px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    transition: background-color .2s, color .2s;
+  }
+  .seg-btn[aria-checked="true"] { background: var(--card); color: var(--accent); box-shadow: var(--shadow); }
+  .seg-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
   .plan-note { font-size: 11px; color: var(--muted); }
   .adjust summary { width: fit-content; font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; }
   .adjust summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
@@ -655,10 +648,18 @@
   <p class="warn" id="warn" hidden>⚠️ Dein Browser erlaubt hier kein Speichern (z.&nbsp;B. privater Modus). Dein Fortschritt geht beim Schließen verloren.</p>
 
   <section class="plan" id="plan" aria-labelledby="planEyebrow">
-    <p class="plan-eyebrow" id="planEyebrow">Theorie fertig am</p>
-    <div class="locs" id="planRows" role="radiogroup" aria-labelledby="planEyebrow"></div>
-    <p class="plan-sub" id="planSub" hidden></p>
-    <p class="plan-note">Wenn du zu jedem Termin gehst. Beide Standorte haben eigene Termine; tippe auf deinen, dann zeigen die Karten seine Daten. Berlin: Lichtenrader Damm 40, Mahlow: Marktplatz 2. Feiertage sind eingerechnet, Ferienkurse nicht.</p>
+    <div>
+      <p class="plan-eyebrow" id="planEyebrow">Theorie fertig am</p>
+      <p class="plan-date" id="planDate">–</p>
+      <p class="plan-sub" id="planSub"></p>
+    </div>
+    <p class="plan-alert" id="planAlert" hidden></p>
+    <div class="seg" id="planModes" role="radiogroup" aria-label="Standorte">
+      <button class="seg-btn" type="button" role="radio" data-loc="beide" aria-checked="true">Beide</button>
+      <button class="seg-btn" type="button" role="radio" data-loc="berlin" aria-checked="false">Nur Berlin</button>
+      <button class="seg-btn" type="button" role="radio" data-loc="mahlow" aria-checked="false">Nur Mahlow</button>
+    </div>
+    <p class="plan-note">Jedes Thema brauchst du nur einmal. Bei „Beide“ nimmt der Bogen für jedes Thema den nächsten Termin, egal an welchem Standort: Berlin (Lichtenrader Damm 40) Di + Do 18:30–20:00, Mahlow (Marktplatz 2) Mo + Mi 18:00–19:30. Feiertage sind eingerechnet, Ferienkurse nicht.</p>
     <details class="adjust">
       <summary>Plan anpassen</summary>
       <div class="adjust-rows" id="adjustRows"></div>
@@ -756,7 +757,7 @@
     mahlow: { name: 'Mahlow', days: [1, 3], dayText: 'Mo + Mi', start: '18:00', end: '19:30', region: 'BB', anchor: null },
   };
   const THEORY_TOTAL = SETS.theorie.topics.length;
-  const LOC_CHOICES = Object.keys(LOCATIONS);
+  const LOC_CHOICES = ['beide', ...Object.keys(LOCATIONS)];
   const TAB_KEY = 'checkliste-tab';
   const RING_CIRC = 2 * Math.PI * 52;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -835,7 +836,7 @@
   function sanitize(set, data) {
     const total = set.topics.length;
     const out = { done: {}, names: {} };
-    if (set.hasPlan) out.plan = { loc: 'berlin', anchors: {} };
+    if (set.hasPlan) out.plan = { loc: 'beide', anchors: {} };
     if (!data || typeof data !== 'object') return out;
     for (let id = 1; id <= total; id++) {
       const doneAt = data.done && data.done[id];
@@ -933,7 +934,7 @@
     };
 
     const hasData = () => Object.keys(st.state.done).length || Object.keys(st.state.names).length
-      || (st.state.plan && (st.state.plan.loc !== 'berlin' || Object.keys(st.state.plan.anchors).length));
+      || (st.state.plan && (st.state.plan.loc !== 'beide' || Object.keys(st.state.plan.anchors).length));
 
     st.apply = snap => {
       // Eigene Schreibvorgänge kommen als Echo zurück, die ignorieren wir
@@ -1027,13 +1028,13 @@
   }
 
   // ---------- Theorie-Bogen ----------
-  // Jeder Standort hat seinen eigenen Plan; die Karten zeigen die Termine des gewählten Standorts.
+  // Berlin und Mahlow haben eigene Termine. Jedes Thema braucht man nur einmal, also nimmt der Bogen
+  // für jedes Thema den frühesten Termin an den gewählten Standorten.
   let schedByLoc = {};
-  let sched = { byTopic: {} };
+  let sched = { byTopic: {}, usable: [], missing: [] };
 
   const anchorFor = locKey => (stores.theorie.state.plan.anchors[locKey] || LOCATIONS[locKey].anchor);
 
-  // Frühester kommender Termin für jedes Thema; das ist zugleich der schnellste Weg, alles zu schaffen
   function refreshSchedule() {
     const now = new Date();
     schedByLoc = {};
@@ -1043,7 +1044,15 @@
       if (anchor) for (const s of upcomingSessions(key, anchor, now, THEORY_TOTAL)) if (!byTopic[s.topic]) byTopic[s.topic] = s;
       schedByLoc[key] = { byTopic, known: Boolean(anchor) };
     }
-    sched = schedByLoc[stores.theorie.state.plan.loc];
+    const mode = stores.theorie.state.plan.loc;
+    const keys = mode === 'beide' ? Object.keys(LOCATIONS) : [mode];
+    const byTopic = {};
+    for (const key of keys) {
+      for (const s of Object.values(schedByLoc[key].byTopic)) {
+        if (!byTopic[s.topic] || s.start < byTopic[s.topic].start) byTopic[s.topic] = s;
+      }
+    }
+    sched = { byTopic, usable: keys.filter(k => schedByLoc[k].known), missing: keys.filter(k => !schedByLoc[k].known) };
   }
 
   const sessionText = s => `${shortDate(s.date)} · ${s.start.getHours()}:${pad(s.start.getMinutes())} · ${LOCATIONS[s.loc].name}`;
@@ -1054,56 +1063,37 @@
     if (card.hidden) return;
 
     const st = stores.theorie.state;
+    document.querySelectorAll('.seg-btn').forEach(b => b.setAttribute('aria-checked', String(b.dataset.loc === st.plan.loc)));
+
     const open = [];
     for (let id = 1; id <= THEORY_TOTAL; id++) if (!st.done[id]) open.push(id);
+    const picks = open.map(id => sched.byTopic[id]).filter(Boolean).sort((a, b) => a.start - b.start);
 
-    const sub = $('planSub');
-    sub.hidden = open.length > 0;
-    $('planEyebrow').textContent = open.length ? 'Theorie fertig am' : 'Theorie';
-    if (!open.length) sub.textContent = 'Alle 14 Themen sind abgehakt. Jetzt fehlt nur noch die Theorieprüfung. 🎉';
-
-    const rows = $('planRows');
-    rows.replaceChildren();
-    for (const key of Object.keys(LOCATIONS)) {
-      const loc = LOCATIONS[key];
-      const plan = schedByLoc[key];
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'loc';
-      btn.dataset.loc = key;
-      btn.setAttribute('role', 'radio');
-      btn.setAttribute('aria-checked', String(st.plan.loc === key));
-
-      const name = document.createElement('span');
-      name.className = 'loc-name';
-      name.textContent = loc.name;
-      const nameSmall = document.createElement('small');
-      nameSmall.textContent = `${loc.dayText} · ${loc.start}–${loc.end}`;
-      name.append(nameSmall);
-
-      const end = document.createElement('span');
-      end.className = 'loc-end';
-      const strong = document.createElement('strong');
-      const small = document.createElement('small');
-      if (!open.length) {
-        strong.textContent = 'Fertig';
-        small.textContent = 'alle 14 Themen';
-      } else if (!plan.known) {
-        end.classList.add('missing');
-        strong.textContent = 'Plan fehlt';
-        small.textContent = 'unten eintragen';
-      } else {
-        const picks = open.map(id => plan.byTopic[id]).sort((a, b) => a.start - b.start);
-        const last = picks[picks.length - 1];
-        const days = Math.round((parseIso(iso(last.date)) - parseIso(iso(new Date()))) / 864e5);
-        const span = days < 14 ? `${days} ${days === 1 ? 'Tag' : 'Tage'}` : `${Math.ceil(days / 7)} Wochen`;
-        strong.textContent = endDate(last.date);
-        small.textContent = `${picks.length} ${picks.length === 1 ? 'Termin' : 'Termine'} · ${span}`;
-      }
-      end.append(strong, small);
-      btn.append(name, end);
-      rows.append(btn);
+    const alert = $('planAlert');
+    const missing = sched.missing.map(k => LOCATIONS[k].name).join(' und ');
+    alert.hidden = !sched.missing.length || !open.length;
+    if (!alert.hidden) {
+      alert.textContent = `${missing} ist noch nicht eingerechnet, weil der aktuelle Plan fehlt. Trag unter „Plan anpassen“ ein, welches Thema am nächsten Termin in ${missing} dran ist.`;
     }
+
+    if (!open.length) {
+      $('planEyebrow').textContent = 'Theorie';
+      $('planDate').textContent = 'Alles erledigt 🎉';
+      $('planSub').textContent = 'Alle 14 Themen sind abgehakt. Jetzt fehlt nur noch die Theorieprüfung.';
+      return;
+    }
+    $('planEyebrow').textContent = 'Theorie fertig am';
+    if (!picks.length) {
+      $('planDate').textContent = '–';
+      $('planSub').textContent = `Noch ${open.length} ${open.length === 1 ? 'Thema' : 'Themen'} offen.`;
+      return;
+    }
+    const last = picks[picks.length - 1];
+    const days = Math.round((parseIso(iso(last.date)) - parseIso(iso(new Date()))) / 864e5);
+    const span = days < 14 ? `${days} ${days === 1 ? 'Tag' : 'Tage'}` : `${Math.ceil(days / 7)} Wochen`;
+    const where = Object.keys(LOCATIONS).filter(k => picks.some(p => p.loc === k)).map(k => LOCATIONS[k].name).join(' + ');
+    $('planDate').textContent = endDate(last.date);
+    $('planSub').textContent = `${picks.length} ${picks.length === 1 ? 'Termin' : 'Termine'} in ${span} · ${where}`;
   }
 
   function renderAdjust() {
@@ -1177,8 +1167,8 @@
     renderPlan();
   }
 
-  $('planRows').addEventListener('click', e => {
-    const btn = e.target.closest('.loc');
+  $('planModes').addEventListener('click', e => {
+    const btn = e.target.closest('.seg-btn');
     const plan = stores.theorie.state.plan;
     if (!btn || plan.loc === btn.dataset.loc) return;
     plan.loc = btn.dataset.loc;
