@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#eef2f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)">
+<title>Fahrstunden-Checkliste</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
+<style>
+  /* Layout: eine Spalte; oben Tabs (Theorie/Fahrstunden), darunter klebt der Fortschritt (Ring + Straße),
+     bei Theorie folgt der Bogen mit Enddatum, dann die Themenkarten.
+     Schrift: Barlow, angelehnt an Straßenschilder; Akzent: Verkehrszeichen-Blau. */
+  :root {
+    --font-display: "Barlow Condensed", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --bg: #eef2f6;
+    --card: #ffffff;
+    --text: #0f1a2b;
+    --muted: #5b6b80;
+    --border: #dbe3ec;
+    --accent: #0e5a9c;
+    --accent-soft: rgb(14 90 156 / .12);
+    --done: #15803d;
+    --done-soft: #dcfce7;
+    --danger: #b91c1c;
+    --road: #3a4656;
+    --glass: #dbeafe;
+    --warn-bg: #fef3c7;
+    --warn-fg: #78350f;
+    --toast-bg: #0f1a2b;
+    --toast-fg: #f8fafc;
+    --toast-action: #93c5fd;
+    --shadow: 0 1px 2px rgb(15 26 43 / .06), 0 4px 14px rgb(15 26 43 / .06);
+    --ease-out: cubic-bezier(.2, .8, .2, 1);
+    --ease-bounce: cubic-bezier(.34, 1.56, .64, 1);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b1220;
+      --card: #131d2f;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --border: #1f2b42;
+      --accent: #5fa8e6;
+      --accent-soft: rgb(95 168 230 / .16);
+      --done: #22c55e;
+      --done-soft: rgb(34 197 94 / .15);
+      --danger: #f87171;
+      --road: #1e293b;
+      --glass: #bfdbfe;
+      --warn-bg: #422006;
+      --warn-fg: #fde68a;
+      --toast-bg: #e2e8f0;
+      --toast-fg: #0f1a2b;
+      --toast-action: #0e5a9c;
+      --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 4px 14px rgb(0 0 0 / .25);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1220;
+    --card: #131d2f;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --border: #1f2b42;
+    --accent: #5fa8e6;
+    --accent-soft: rgb(95 168 230 / .16);
+    --done: #22c55e;
+    --done-soft: rgb(34 197 94 / .15);
+    --danger: #f87171;
+    --road: #1e293b;
+    --glass: #bfdbfe;
+    --warn-bg: #422006;
+    --warn-fg: #fde68a;
+    --toast-bg: #e2e8f0;
+    --toast-fg: #0f1a2b;
+    --toast-action: #0e5a9c;
+    --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 4px 14px rgb(0 0 0 / .25);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    -webkit-text-size-adjust: 100%;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  body {
+    font-family: var(--font-body);
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.4;
+  }
+
+  button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
+
+  .page {
+    max-width: 640px;
+    margin: 0 auto;
+    padding-inline: 16px;
+    padding-block: 0 32px;
+  }
+
+  /* ---------- Kopfbereich mit Fortschritt ---------- */
+  .hero {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 5;
+    margin: 0 -16px 12px;
+    padding: 10px 16px;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+  }
+  .hero-inner {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .ring-wrap { position: relative; width: 56px; height: 56px; }
+  .ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 10; }
+  .ring-bg { stroke: var(--border); }
+  .ring-fg {
+    stroke: url(#ringGrad);
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s var(--ease-out);
+  }
+  .ring-label {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 19px;
+    font-variant-numeric: tabular-nums;
+  }
+  .ring-label small { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .ring-label .count { display: inline-block; }
+  .ring-label .count.bump { animation: bump .45s var(--ease-bounce); }
+
+  .hero-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  h1 { font-family: var(--font-display); font-size: 20px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; line-height: 1.1; }
+  .pct { flex: none; white-space: nowrap; font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .status { margin-top: 1px; font-size: 12px; color: var(--muted); min-height: 1.4em; }
+
+  /* Straße mit Auto */
+  .road {
+    --p: 0;
+    position: relative;
+    height: 26px;
+    margin-top: 6px;
+    border-radius: 8px;
+    background: var(--road);
+    overflow: hidden;
+  }
+  .lane {
+    position: absolute;
+    left: 0; right: 0; top: 50%;
+    height: 2px;
+    margin-top: -1px;
+    background: repeating-linear-gradient(90deg, rgb(255 255 255 / .5) 0 12px, transparent 12px 24px);
+  }
+  .car {
+    position: absolute;
+    bottom: 2px;
+    left: calc(6px + (100% - 72px) * var(--p));
+    width: 40px;
+    height: 19px;
+    transition: left 1.2s cubic-bezier(.45, .05, .3, 1);
+    filter: drop-shadow(0 2px 2px rgb(0 0 0 / .35));
+  }
+  .car svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .car-body { fill: var(--accent); }
+  .car-window { fill: var(--glass); }
+  .wheel { transform-box: fill-box; transform-origin: center; }
+  .road.moving .wheel { animation: spin .35s linear infinite; }
+  .road.moving.back .wheel { animation-direction: reverse; }
+  .road.moving .chassis { animation: bob .18s ease-in-out infinite alternate; }
+  .flag {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    font-size: 14px;
+    line-height: 1;
+    transform: translateY(-50%);
+    transform-origin: 20% 90%;
+  }
+  .road.finished .flag { animation: wave 1s ease-in-out infinite; }
+
+  /* ---------- Themenliste ---------- */
+  .hint { font-size: 12px; color: var(--muted); margin: 0 2px 8px; }
+
+  .topics { list-style: none; display: grid; gap: 8px; }
+
+  .item { animation: enter .5s var(--ease-out) backwards; animation-delay: calc(var(--i) * 45ms); }
+
+  .topic {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 4px 9px 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: border-color .35s, transform .15s;
+  }
+  .topic::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--done-soft);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform .55s cubic-bezier(.65, 0, .35, 1);
+  }
+  .topic:active:not(.editing) { transform: scale(.985); }
+  .topic.done { border-color: color-mix(in srgb, var(--done) 45%, var(--border)); }
+  .topic.done::before { transform: scaleX(1); }
+  .topic.next { border-color: var(--accent); animation: glow 2.4s ease-in-out infinite; }
+  .topic.pop { animation: pop .5s var(--ease-out); }
+
+  /* Kreis mit Nummer / Haken */
+  .check {
+    position: relative;
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--card);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 17px;
+    color: var(--muted);
+    transition: background-color .35s, border-color .35s, color .35s;
+  }
+  .topic.next .check { border-color: var(--accent); color: var(--accent); }
+  .check:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .check::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    border: 2px solid var(--done);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .num { transition: opacity .2s, transform .35s var(--ease-out); }
+  .check svg { position: absolute; inset: 0; margin: auto; width: 19px; height: 19px; }
+  .check path {
+    fill: none;
+    stroke: #fff;
+    stroke-width: 3.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 20;
+    stroke-dashoffset: 20;
+    transition: stroke-dashoffset .3s ease;
+  }
+  .topic.done .check { background: var(--done); border-color: var(--done); color: #fff; }
+  .topic.done .num { opacity: 0; transform: scale(.3) rotate(-90deg); }
+  .topic.done .check path { stroke-dashoffset: 0; transition: stroke-dashoffset .4s ease .15s; }
+  .topic.pop .check { animation: badge .6s var(--ease-bounce); }
+  .topic.pop .check::after { animation: ripple .7s ease-out; }
+
+  /* Text */
+  .body { flex: 1; min-width: 0; }
+  .tag {
+    display: none;
+    margin-bottom: 2px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+  }
+  .topic.next .tag { display: inline-block; }
+  .title { font-size: 15px; font-weight: 600; text-wrap: balance; line-height: 1.3; overflow-wrap: anywhere; }
+  .desc { margin-top: 1px; font-size: 12px; color: var(--muted); }
+  .desc[hidden] { display: none; }
+
+  .meta {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows .4s var(--ease-out);
+  }
+  .meta > div { min-height: 0; overflow: hidden; }
+  .date {
+    margin-top: 2px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--done);
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity .3s, transform .3s;
+  }
+  .topic.done .meta { grid-template-rows: 1fr; }
+  .topic.done .date { opacity: 1; transform: none; transition-delay: .2s; }
+
+  .title-input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--text);
+    font: inherit;
+    outline: none;
+  }
+
+  .edit {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    transition: background-color .2s, color .2s;
+  }
+  .edit:hover { background: var(--accent-soft); color: var(--accent); }
+  .edit:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .edit svg { width: 15px; height: 15px; }
+
+  /* ---------- Fußbereich ---------- */
+  .footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 16px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .reset {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .reset:disabled { opacity: .45; cursor: default; }
+  .reset.armed { border-color: var(--danger); color: var(--danger); }
+  .reset:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .warn {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--warn-bg);
+    color: var(--warn-fg);
+    font-size: 13px;
+  }
+  .warn[hidden] { display: none; }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    z-index: 15;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: max-content;
+    max-width: calc(100% - 32px);
+    padding: 8px 8px 8px 16px;
+    border-radius: 12px;
+    background: var(--toast-bg);
+    color: var(--toast-fg);
+    font-size: 14px;
+    box-shadow: 0 10px 30px rgb(0 0 0 / .25);
+    transform: translate(-50%, calc(100% + 40px));
+    visibility: hidden;
+    transition: transform .35s var(--ease-out), visibility 0s .35s;
+  }
+  .toast.show { transform: translate(-50%, 0); visibility: visible; transition: transform .35s var(--ease-out); }
+  .toast button {
+    flex: none;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--toast-action);
+    font-weight: 700;
+  }
+
+  /* ---------- Abschluss-Feier ---------- */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: rgb(2 6 23 / .55);
+    opacity: 0;
+    transition: opacity .3s;
+  }
+  .overlay[hidden] { display: none; }
+  .overlay.show { opacity: 1; }
+  .overlay-card {
+    width: 100%;
+    max-width: 360px;
+    padding: 28px 24px 22px;
+    border-radius: 24px;
+    background: var(--card);
+    text-align: center;
+    box-shadow: 0 30px 60px rgb(0 0 0 / .3);
+    transform: scale(.85) translateY(24px);
+    transition: transform .5s var(--ease-bounce);
+  }
+  .overlay.show .overlay-card { transform: none; }
+  .trophy { display: inline-block; font-size: 64px; line-height: 1; animation: trophy 1.8s ease-in-out infinite; }
+  .overlay-card h2 { margin-top: 12px; font-family: var(--font-display); font-size: 28px; font-weight: 800; text-wrap: balance; }
+  .overlay-card p { margin-top: 6px; color: var(--muted); }
+  .overlay-card button {
+    margin-top: 20px;
+    width: 100%;
+    padding: 12px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--done);
+    color: #fff;
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .overlay-card button:focus-visible { outline: 3px solid color-mix(in srgb, var(--done) 45%, transparent); outline-offset: 2px; }
+
+  #confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; }
+
+  /* ---------- Tabs ---------- */
+  .tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    margin-top: 10px;
+    padding: 3px;
+    border-radius: 10px;
+    background: var(--border);
+  }
+  .tab {
+    padding: 5px 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    transition: background-color .25s, color .25s, box-shadow .25s;
+  }
+  .tab small { margin-left: 4px; font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+  .tab[aria-selected="true"] { background: var(--card); color: var(--text); box-shadow: var(--shadow); }
+  .tab:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+
+  /* ---------- Theorie-Bogen ---------- */
+  .plan {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card);
+    box-shadow: var(--shadow);
+  }
+  .plan[hidden] { display: none; }
+  .plan-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .plan-date {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .plan-sub { margin-top: 2px; font-size: 13px; color: var(--muted); }
+  .plan-alert { padding: 8px 10px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-fg); font-size: 12px; }
+  .plan-alert[hidden] { display: none; }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 3px; border-radius: 9px; background: var(--border); }
+  .seg-btn {
+    padding: 5px 4px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    transition: background-color .2s, color .2s;
+  }
+  .seg-btn[aria-checked="true"] { background: var(--card); color: var(--accent); box-shadow: var(--shadow); }
+  .seg-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .plan-note { font-size: 11px; color: var(--muted); }
+  .adjust summary { width: fit-content; font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; }
+  .adjust summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  .adjust-rows { display: grid; gap: 10px; margin-top: 8px; }
+  .adjust-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 13px; }
+  .adjust-row strong { flex-basis: 100%; }
+  .adjust-row select {
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--text);
+    font: inherit;
+  }
+  .adjust-row button {
+    padding: 6px 12px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--card);
+    font-weight: 700;
+  }
+  .adjust-row button.link { padding: 6px 4px; background: transparent; color: var(--accent); font-weight: 600; }
+  .adjust-row select:focus-visible, .adjust-row button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  /* Termin auf der Themenkarte */
+  .when {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .when[hidden], .topic.done .when { display: none; }
+
+  /* ---------- Animationen ---------- */
+  @keyframes enter { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+  @keyframes pop { 35% { transform: scale(1.025); } }
+  @keyframes badge { 0% { transform: scale(.6); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+  @keyframes ripple { 0% { opacity: .8; transform: scale(1); } 100% { opacity: 0; transform: scale(1.9); } }
+  @keyframes glow {
+    0%, 100% { box-shadow: var(--shadow), 0 0 0 0 var(--accent-soft); }
+    50% { box-shadow: var(--shadow), 0 0 0 5px var(--accent-soft); }
+  }
+  @keyframes bump { 40% { transform: scale(1.35); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes bob { to { transform: translateY(-1px); } }
+  @keyframes wave { 50% { transform: translateY(-50%) rotate(-14deg); } }
+  @keyframes trophy { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-8px) rotate(4deg); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important;
+      transition-delay: 0s !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="tabs" role="tablist" aria-label="Liste wählen">
+    <button class="tab" type="button" role="tab" id="tab-theorie" data-set="theorie" aria-selected="true" aria-controls="topics">Theorie<small>14</small></button>
+    <button class="tab" type="button" role="tab" id="tab-fahrstunden" data-set="fahrstunden" aria-selected="false" aria-controls="topics">Fahrstunden<small>12</small></button>
+  </div>
+
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+          <defs>
+            <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#22c55e"/>
+              <stop offset="1" stop-color="#3b82f6"/>
+            </linearGradient>
+          </defs>
+          <circle class="ring-bg" cx="60" cy="60" r="52"/>
+          <circle class="ring-fg" id="ringFg" cx="60" cy="60" r="52"/>
+        </svg>
+        <div class="ring-label"><span><span class="count" id="count">0</span><small id="total">/14</small></span></div>
+      </div>
+
+      <div>
+        <div class="hero-top">
+          <h1 id="heading">Theorie</h1>
+          <span class="pct" id="pct">0 %</span>
+        </div>
+        <p class="status" id="status" aria-live="polite"></p>
+        <div class="road" id="road" aria-hidden="true">
+          <div class="lane"></div>
+          <div class="car">
+            <svg viewBox="0 0 64 30">
+              <g class="chassis">
+                <path class="car-body" d="M3 21V15c0-1.7 1-3 2.6-3.4L12 10l7-6.4C20 2.6 21.4 2 22.9 2H34c1.6 0 3.1.7 4.1 2L44 10l13.5 1.8c2.6.4 4.5 2.5 4.5 5.1V21c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2z"/>
+                <path class="car-window" d="M14.5 10l6-5.4c.5-.4 1.1-.6 1.8-.6H27v6z"/>
+                <path class="car-window" d="M29 4h4.6c1 0 1.9.4 2.6 1.2L41 10H29z"/>
+                <rect x="58.5" y="13.5" width="3.5" height="2.6" rx="1" fill="#fde68a"/>
+                <rect x="3" y="13.5" width="2.5" height="2.6" rx="1" fill="#ef4444"/>
+              </g>
+              <g class="wheel">
+                <circle cx="15" cy="23" r="5.2" fill="#0f172a"/>
+                <circle cx="15" cy="23" r="2.4" fill="#cbd5e1"/>
+                <path d="M15 20.6v4.8M12.6 23h4.8" stroke="#475569" stroke-width="1"/>
+              </g>
+              <g class="wheel">
+                <circle cx="50" cy="23" r="5.2" fill="#0f172a"/>
+                <circle cx="50" cy="23" r="2.4" fill="#cbd5e1"/>
+                <path d="M50 20.6v4.8M47.6 23h4.8" stroke="#475569" stroke-width="1"/>
+              </g>
+            </svg>
+          </div>
+          <span class="flag">🏁</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <p class="warn" id="warn" hidden>⚠️ Dein Browser erlaubt hier kein Speichern (z.&nbsp;B. privater Modus). Dein Fortschritt geht beim Schließen verloren.</p>
+
+  <section class="plan" id="plan" aria-labelledby="planEyebrow">
+    <div>
+      <p class="plan-eyebrow" id="planEyebrow">Theorie fertig am</p>
+      <p class="plan-date" id="planDate">–</p>
+      <p class="plan-sub" id="planSub"></p>
+    </div>
+    <p class="plan-alert" id="planAlert" hidden></p>
+    <div class="seg" id="planModes" role="radiogroup" aria-label="Standorte">
+      <button class="seg-btn" type="button" role="radio" data-loc="beide" aria-checked="true">Beide</button>
+      <button class="seg-btn" type="button" role="radio" data-loc="berlin" aria-checked="false">Nur Berlin</button>
+      <button class="seg-btn" type="button" role="radio" data-loc="mahlow" aria-checked="false">Nur Mahlow</button>
+    </div>
+    <p class="plan-note">Jedes Thema brauchst du nur einmal. Bei „Beide“ nimmt der Bogen für jedes Thema den nächsten Termin, egal an welchem Standort: Berlin (Lichtenrader Damm 40) Di + Do 18:30–20:00, Mahlow (Marktplatz 2) Mo + Mi 18:00–19:30. Feiertage sind eingerechnet, Ferienkurse nicht.</p>
+    <details class="adjust">
+      <summary>Plan anpassen</summary>
+      <div class="adjust-rows" id="adjustRows"></div>
+    </details>
+  </section>
+
+  <p class="hint" id="hint"></p>
+
+  <ol class="topics" id="topics"></ol>
+
+  <div class="footer">
+    <span id="saveInfo" aria-live="polite">Wird automatisch auf diesem Gerät gespeichert.</span>
+    <button class="reset" id="reset" type="button">Alles zurücksetzen</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <span id="toastText"></span>
+  <button type="button" id="toastUndo">Rückgängig</button>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="overlayTitle">
+    <span class="trophy" aria-hidden="true">🏆</span>
+    <h2 id="overlayTitle"></h2>
+    <p id="overlayText"></p>
+    <button type="button" id="overlayClose">Weiter</button>
+  </div>
+</div>
+
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- Inhalte ----------
+  // Beide Listen sind über den Stift-Button in der App umbenennbar.
+  const SETS = {
+    theorie: {
+      label: 'Theorie',
+      storageKey: 'theorie-checkliste-v1',
+      doc: 'theorie',
+      hasPlan: true,
+      keepDesc: true, // Grundstoff/Zusatzstoff stimmt auch bei eigenem Namen
+      hint: 'Hak ein Thema ab, wenn du in der Theoriestunde warst. Die Karten stehen in der Reihenfolge deiner Termine.',
+      done: { title: 'Alle 14 Theorie-Themen geschafft!', text: 'Jetzt fehlt nur noch die Theorieprüfung. Viel Erfolg! 🍀' },
+      topics: [
+        { title: 'Persönliche Voraussetzungen', desc: 'Grundstoff' },
+        { title: 'Rechtliche Rahmenbedingungen', desc: 'Grundstoff' },
+        { title: 'Grundregeln, Verkehrszeichen und Verkehrseinrichtungen', desc: 'Grundstoff' },
+        { title: 'Straßenverkehrssystem und seine Nutzung', desc: 'Grundstoff' },
+        { title: 'Vorfahrt und Verkehrsregelungen', desc: 'Grundstoff' },
+        { title: 'Verkehrsregelungen und Bahnübergänge', desc: 'Grundstoff' },
+        { title: 'Geschwindigkeit, Abstand und umweltschonende Fahrweise', desc: 'Grundstoff' },
+        { title: 'Andere Teilnehmer im Straßenverkehr, Verkehrsbeobachtung', desc: 'Grundstoff' },
+        { title: 'Verkehrsverhalten bei Fahrmanövern', desc: 'Grundstoff' },
+        { title: 'Ruhender Verkehr', desc: 'Grundstoff' },
+        { title: 'Verhalten in besonderen Situationen, Folgen von Verstößen', desc: 'Grundstoff' },
+        { title: 'Risikofaktor Mensch', desc: 'Grundstoff' },
+        { title: 'Technische Bedingungen, Personen- und Güterbeförderung', desc: 'Zusatzstoff Klasse B' },
+        { title: 'Fahren mit Solo-Kfz und Zügen, umweltschonender Umgang', desc: 'Zusatzstoff Klasse B' },
+      ],
+    },
+    fahrstunden: {
+      label: 'Fahrstunden',
+      storageKey: 'fahrstunden-checkliste-v1',
+      doc: 'fahrstunden',
+      hasPlan: false,
+      keepDesc: false,
+      hint: 'Tippe auf ein Thema, um es abzuhaken. Mit dem Stift benennst du es um.',
+      done: { title: 'Alle 12 Themen geschafft!', text: 'Du bist bereit für die Prüfung. Viel Erfolg! 🍀' },
+      topics: [
+        { title: 'Grundbedienung & Anfahren', desc: 'Sitz, Spiegel und Lenkrad einstellen · Motor starten · Anfahren und Anhalten' },
+        { title: 'Schalten & Lenken', desc: 'Gänge wechseln · Lenkradhaltung · Kurven fahren' },
+        { title: 'Bremsen & Anfahren am Berg', desc: 'Vorausschauend bremsen · Rollen lassen · Steigung und Gefälle' },
+        { title: 'Abbiegen & Fahrstreifenwechsel', desc: 'Spiegel · Schulterblick · Blinken · Einordnen' },
+        { title: 'Vorfahrt & Kreuzungen', desc: 'Rechts vor links · Ampeln · Vorfahrtsschilder' },
+        { title: 'Kreisverkehr & Verkehrszeichen', desc: 'Ein- und Ausfahren · Richtig blinken · Schilder erkennen' },
+        { title: 'Fußgänger, Radfahrer & Bahnübergang', desc: 'Zebrastreifen · Radwege · Schranken und Andreaskreuz' },
+        { title: 'Grundfahraufgaben', desc: 'Einparken längs und quer · Rückwärtsfahren · Umkehren · Gefahrbremsung' },
+        { title: 'Überlandfahrt', desc: 'Sonderfahrt · Landstraße · Überholen · Wildwechsel' },
+        { title: 'Autobahnfahrt', desc: 'Sonderfahrt · Auffahren und Abfahren · Spurwechsel bei hohem Tempo' },
+        { title: 'Dämmerung & Dunkelheit', desc: 'Sonderfahrt · Licht richtig bedienen · Blendung' },
+        { title: 'Prüfungsvorbereitung', desc: 'Testfahrt unter Prüfungsbedingungen' },
+      ],
+    },
+  };
+
+  // Theorieplan von Peggy's Fahrschule. Die 14 Themen laufen der Reihe nach durch;
+  // der Anker sagt, welches Thema an welchem Termin dran ist (Berlin: Thema 1 am Do, 01.10.2026).
+  // Für Mahlow war kein aktueller Plan abrufbar, deshalb trägt man ihn in der App unter „Plan anpassen“ ein.
+  const LOCATIONS = {
+    berlin: { name: 'Berlin', days: [2, 4], dayText: 'Di + Do', start: '18:30', end: '20:00', region: 'BE', anchor: { date: '2026-10-01', topic: 1 } },
+    mahlow: { name: 'Mahlow', days: [1, 3], dayText: 'Mo + Mi', start: '18:00', end: '19:30', region: 'BB', anchor: null },
+  };
+  const THEORY_TOTAL = SETS.theorie.topics.length;
+  const LOC_CHOICES = ['beide', ...Object.keys(LOCATIONS)];
+  const TAB_KEY = 'checkliste-tab';
+  const RING_CIRC = 2 * Math.PI * 52;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const $ = id => document.getElementById(id);
+  const list = $('topics');
+  const road = $('road');
+  const ringFg = $('ringFg');
+  const countEl = $('count');
+  const resetBtn = $('reset');
+
+  // ---------- Datum & Feiertage ----------
+  const pad = n => String(n).padStart(2, '0');
+  const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parseIso = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d, 12); };
+  const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, 12);
+  const atTime = (d, hhmm) => { const [h, m] = hhmm.split(':').map(Number); return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m); };
+  const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+  const shortDate = d => `${WEEKDAYS[d.getDay()]}, ${pad(d.getDate())}.${pad(d.getMonth() + 1)}.`;
+  const endDate = d => `${shortDate(d)}${d.getFullYear()}`;
+  const doneFmt = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+  function easterSunday(y) {
+    const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
+    const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const month = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(y, month - 1, day, 12);
+  }
+
+  // Gesetzliche Feiertage in Berlin (BE) bzw. Brandenburg (BB), dazu Heiligabend und Silvester
+  const holidayCache = {};
+  function holidays(y, region) {
+    const key = y + region;
+    if (holidayCache[key]) return holidayCache[key];
+    const e = easterSunday(y);
+    const days = [`${y}-01-01`, iso(addDays(e, -2)), iso(addDays(e, 1)), `${y}-05-01`, iso(addDays(e, 39)),
+      iso(addDays(e, 50)), `${y}-10-03`, `${y}-12-24`, `${y}-12-25`, `${y}-12-26`, `${y}-12-31`];
+    if (region === 'BE') days.push(`${y}-03-08`);
+    if (region === 'BB') days.push(`${y}-10-31`);
+    return (holidayCache[key] = new Set(days));
+  }
+  const isHoliday = (d, region) => holidays(d.getFullYear(), region).has(iso(d));
+  const isClassDay = (loc, d) => loc.days.includes(d.getDay()) && !isHoliday(d, loc.region);
+
+  // Nächste Termine eines Standorts ab jetzt; fällt ein Termin auf einen Feiertag, kommt das Thema beim nächsten Termin
+  function upcomingSessions(locKey, anchor, now, count) {
+    const loc = LOCATIONS[locKey];
+    const out = [];
+    let d = parseIso(anchor.date);
+    let k = 0;
+    for (let n = 0; n < 4000 && out.length < count; n++, d = addDays(d, 1)) {
+      if (!isClassDay(loc, d)) continue;
+      const topic = ((anchor.topic - 1 + k) % THEORY_TOTAL) + 1;
+      k++;
+      if (atTime(d, loc.end) < now) continue;
+      out.push({ loc: locKey, topic, date: d, start: atTime(d, loc.start) });
+    }
+    return out;
+  }
+
+  function nextClassDates(locKey, now, count) {
+    const loc = LOCATIONS[locKey];
+    const out = [];
+    let d = parseIso(iso(now));
+    for (let n = 0; n < 60 && out.length < count; n++, d = addDays(d, 1)) {
+      if (isClassDay(loc, d) && atTime(d, loc.end) >= now) out.push(d);
+    }
+    return out;
+  }
+
+  // ---------- Speichern ----------
+  // Lokal (localStorage) für sofortiges Laden. Läuft die Seite als Artifact in claude.ai,
+  // wird zusätzlich im Claude-Konto gespeichert, damit Handy und PC denselben Stand haben.
+  function sanitize(set, data) {
+    const total = set.topics.length;
+    const out = { done: {}, names: {} };
+    if (set.hasPlan) out.plan = { loc: 'beide', anchors: {} };
+    if (!data || typeof data !== 'object') return out;
+    for (let id = 1; id <= total; id++) {
+      const doneAt = data.done && data.done[id];
+      if (typeof doneAt === 'string' && !isNaN(Date.parse(doneAt))) out.done[id] = doneAt;
+      const name = data.names && data.names[id];
+      if (typeof name === 'string' && name.trim()) out.names[id] = name.trim().slice(0, 60);
+    }
+    const plan = set.hasPlan && data.plan;
+    if (plan && typeof plan === 'object') {
+      if (LOC_CHOICES.includes(plan.loc)) out.plan.loc = plan.loc;
+      for (const key of Object.keys(LOCATIONS)) {
+        const a = plan.anchors && plan.anchors[key];
+        if (a && typeof a.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(a.date)
+            && Number.isInteger(a.topic) && a.topic >= 1 && a.topic <= THEORY_TOTAL) {
+          out.plan.anchors[key] = { date: a.date, topic: a.topic };
+        }
+      }
+    }
+    return out;
+  }
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  let remotePending = false;
+
+  function createStore(setKey) {
+    const set = SETS[setKey];
+    const st = { key: setKey, state: null, localOk: true, ref: null, synced: false, dirty: false, writing: false, writeAgain: false, mode: 'local' };
+
+    st.readLocal = () => {
+      let raw = null;
+      try {
+        raw = localStorage.getItem(set.storageKey);
+      } catch (e) {
+        st.localOk = false;
+        return sanitize(set, null);
+      }
+      if (!raw) return sanitize(set, null);
+      try {
+        return sanitize(set, JSON.parse(raw));
+      } catch (e) {
+        return sanitize(set, null);
+      }
+    };
+
+    st.writeLocal = () => {
+      try {
+        localStorage.setItem(set.storageKey, JSON.stringify(st.state));
+        st.localOk = true;
+      } catch (e) {
+        st.localOk = false;
+      }
+      updateWarn();
+    };
+
+    st.setMode = mode => {
+      st.mode = mode;
+      if (setKey === activeKey) showSaveInfo();
+    };
+
+    st.persist = () => {
+      st.state = sanitize(set, st.state);
+      st.dirty = true;
+      st.writeLocal();
+      st.flush();
+    };
+
+    async function setWithRetry(body) {
+      try {
+        await st.ref.set(body);
+      } catch (e) {
+        const final = ['invalid_argument', 'quota_exceeded', 'resource_exhausted', 'revoked', 'not_granted'];
+        if (e && final.includes(e.code)) throw e;
+        await sleep(400 + Math.random() * 800);
+        await st.ref.set(body);
+      }
+    }
+
+    st.flush = async () => {
+      if (!st.ref || !st.synced) return;
+      if (st.writing) { st.writeAgain = true; return; }
+      st.writing = true;
+      st.setMode('saving');
+      try {
+        do {
+          st.writeAgain = false;
+          await setWithRetry(JSON.parse(JSON.stringify(st.state)));
+        } while (st.writeAgain);
+        st.dirty = false;
+        st.setMode('cloud');
+      } catch (e) {
+        st.setMode('error');
+      } finally {
+        st.writing = false;
+      }
+    };
+
+    const hasData = () => Object.keys(st.state.done).length || Object.keys(st.state.names).length
+      || (st.state.plan && (st.state.plan.loc !== 'beide' || Object.keys(st.state.plan.anchors).length));
+
+    st.apply = snap => {
+      // Eigene Schreibvorgänge kommen als Echo zurück, die ignorieren wir
+      if (snap.metadata.hasPendingWrites || st.writing) return;
+      if (!snap.exists) {
+        if (snap.metadata.fromCache) return; // noch nicht sicher, ob es wirklich leer ist
+        if (!st.synced) {
+          st.synced = true;
+          updateWarn();
+          // Erstes Mal im Konto: bisherigen Stand von diesem Gerät mitnehmen
+          if (hasData()) st.flush();
+          else st.setMode('cloud');
+        }
+        return;
+      }
+      const remote = sanitize(set, snap.data());
+      if (!st.synced) {
+        st.synced = true;
+        updateWarn();
+        if (st.dirty) { st.flush(); return; } // hier schon geändert, bevor das Konto antwortete
+      }
+      if (JSON.stringify(remote) !== JSON.stringify(st.state)) {
+        st.state = remote;
+        st.writeLocal();
+        onStoreChanged(setKey);
+      }
+      st.setMode('cloud');
+    };
+
+    st.attach = (db, uid) => {
+      st.ref = db.doc(`data/users/${uid}/${set.doc}`);
+      st.ref.onSnapshot(st.apply, () => {
+        st.ref = null;
+        st.synced = false;
+        st.setMode(st.localOk ? 'local' : 'error');
+        updateWarn();
+      });
+    };
+
+    st.state = st.readLocal();
+    return st;
+  }
+
+  const stores = { theorie: createStore('theorie'), fahrstunden: createStore('fahrstunden') };
+
+  let activeKey = 'theorie';
+  try {
+    const saved = localStorage.getItem(TAB_KEY);
+    if (saved && SETS[saved]) activeKey = saved;
+  } catch (e) { /* Tab-Wahl ist nur Komfort */ }
+
+  const set = () => SETS[activeKey];
+  const store = () => stores[activeKey];
+  const state = () => store().state;
+  const total = () => set().topics.length;
+
+  function showSaveInfo() {
+    const st = store();
+    const texts = {
+      local: 'Wird automatisch auf diesem Gerät gespeichert.',
+      saving: 'Speichert …',
+      cloud: 'Gespeichert in deinem Claude-Konto, auf Handy und PC gleich.',
+      error: st.localOk
+        ? 'Speichern im Konto hat nicht geklappt. Auf diesem Gerät ist alles gesichert.'
+        : 'Speichern hat nicht geklappt. Lade die Seite neu und versuch es noch einmal.',
+    };
+    $('saveInfo').textContent = texts[st.mode];
+  }
+
+  function updateWarn() {
+    const all = Object.values(stores || {});
+    const localBad = all.some(s => !s.localOk);
+    const remoteGood = all.length > 0 && all.every(s => s.ref && s.synced);
+    $('warn').hidden = !localBad || remotePending || remoteGood;
+  }
+
+  async function connectRemote() {
+    const claude = window.claude;
+    if (!claude || typeof claude.use !== 'function') return;
+    remotePending = true;
+    try {
+      const [db, user] = await Promise.all([claude.use('db'), claude.use('user')]);
+      const uid = db && user ? await user.id() : null;
+      if (uid) Object.values(stores).forEach(s => s.attach(db, uid));
+    } catch (e) {
+      Object.values(stores).forEach(s => { s.ref = null; });
+    } finally {
+      remotePending = false;
+      updateWarn();
+    }
+  }
+
+  // ---------- Theorie-Bogen ----------
+  // Berlin und Mahlow haben eigene Termine. Jedes Thema braucht man nur einmal, also nimmt der Bogen
+  // für jedes Thema den frühesten Termin an den gewählten Standorten.
+  let schedByLoc = {};
+  let sched = { byTopic: {}, usable: [], missing: [] };
+
+  const anchorFor = locKey => (stores.theorie.state.plan.anchors[locKey] || LOCATIONS[locKey].anchor);
+
+  function refreshSchedule() {
+    const now = new Date();
+    schedByLoc = {};
+    for (const key of Object.keys(LOCATIONS)) {
+      const anchor = anchorFor(key);
+      const byTopic = {};
+      if (anchor) for (const s of upcomingSessions(key, anchor, now, THEORY_TOTAL)) if (!byTopic[s.topic]) byTopic[s.topic] = s;
+      schedByLoc[key] = { byTopic, known: Boolean(anchor) };
+    }
+    const mode = stores.theorie.state.plan.loc;
+    const keys = mode === 'beide' ? Object.keys(LOCATIONS) : [mode];
+    const byTopic = {};
+    for (const key of keys) {
+      for (const s of Object.values(schedByLoc[key].byTopic)) {
+        if (!byTopic[s.topic] || s.start < byTopic[s.topic].start) byTopic[s.topic] = s;
+      }
+    }
+    sched = { byTopic, usable: keys.filter(k => schedByLoc[k].known), missing: keys.filter(k => !schedByLoc[k].known) };
+  }
+
+  const sessionText = s => `${shortDate(s.date)} · ${s.start.getHours()}:${pad(s.start.getMinutes())} · ${LOCATIONS[s.loc].name}`;
+
+  function renderPlan() {
+    const card = $('plan');
+    card.hidden = !set().hasPlan;
+    if (card.hidden) return;
+
+    const st = stores.theorie.state;
+    document.querySelectorAll('.seg-btn').forEach(b => b.setAttribute('aria-checked', String(b.dataset.loc === st.plan.loc)));
+
+    const open = [];
+    for (let id = 1; id <= THEORY_TOTAL; id++) if (!st.done[id]) open.push(id);
+    const picks = open.map(id => sched.byTopic[id]).filter(Boolean).sort((a, b) => a.start - b.start);
+
+    const alert = $('planAlert');
+    const missing = sched.missing.map(k => LOCATIONS[k].name).join(' und ');
+    alert.hidden = !sched.missing.length || !open.length;
+    if (!alert.hidden) {
+      alert.textContent = `${missing} ist noch nicht eingerechnet, weil der aktuelle Plan fehlt. Trag unter „Plan anpassen“ ein, welches Thema am nächsten Termin in ${missing} dran ist.`;
+    }
+
+    if (!open.length) {
+      $('planEyebrow').textContent = 'Theorie';
+      $('planDate').textContent = 'Alles erledigt 🎉';
+      $('planSub').textContent = 'Alle 14 Themen sind abgehakt. Jetzt fehlt nur noch die Theorieprüfung.';
+      return;
+    }
+    $('planEyebrow').textContent = 'Theorie fertig am';
+    if (!picks.length) {
+      $('planDate').textContent = '–';
+      $('planSub').textContent = `Noch ${open.length} ${open.length === 1 ? 'Thema' : 'Themen'} offen.`;
+      return;
+    }
+    const last = picks[picks.length - 1];
+    const days = Math.round((parseIso(iso(last.date)) - parseIso(iso(new Date()))) / 864e5);
+    const span = days < 14 ? `${days} ${days === 1 ? 'Tag' : 'Tage'}` : `${Math.ceil(days / 7)} Wochen`;
+    const where = Object.keys(LOCATIONS).filter(k => picks.some(p => p.loc === k)).map(k => LOCATIONS[k].name).join(' + ');
+    $('planDate').textContent = endDate(last.date);
+    $('planSub').textContent = `${picks.length} ${picks.length === 1 ? 'Termin' : 'Termine'} in ${span} · ${where}`;
+  }
+
+  function renderAdjust() {
+    const box = $('adjustRows');
+    box.replaceChildren();
+    const now = new Date();
+    for (const key of Object.keys(LOCATIONS)) {
+      const loc = LOCATIONS[key];
+      const anchor = anchorFor(key);
+      const dates = nextClassDates(key, now, 6);
+      const known = anchor ? upcomingSessions(key, anchor, now, 6) : [];
+
+      const row = document.createElement('div');
+      row.className = 'adjust-row';
+      const label = document.createElement('strong');
+      label.textContent = `${loc.name} (${loc.dayText}):`;
+
+      const dateSel = document.createElement('select');
+      dateSel.id = `adjust-${key}-date`;
+      dateSel.setAttribute('aria-label', `Termin in ${loc.name}`);
+      dates.forEach(d => dateSel.add(new Option(`am ${shortDate(d)}`, iso(d))));
+
+      const topicSel = document.createElement('select');
+      topicSel.id = `adjust-${key}-topic`;
+      topicSel.setAttribute('aria-label', `Thema an diesem Termin in ${loc.name}`);
+      if (!anchor) topicSel.add(new Option('Thema ?', ''));
+      for (let t = 1; t <= THEORY_TOTAL; t++) topicSel.add(new Option(`Thema ${t}`, String(t)));
+
+      const sync = () => {
+        const s = known.find(x => iso(x.date) === dateSel.value);
+        topicSel.value = s ? String(s.topic) : '';
+      };
+      dateSel.addEventListener('change', sync);
+      sync();
+
+      const save = document.createElement('button');
+      save.type = 'button';
+      save.textContent = 'Speichern';
+      save.addEventListener('click', () => {
+        const topic = Number(topicSel.value);
+        if (!topic) { topicSel.focus(); return; }
+        stores.theorie.state.plan.anchors[key] = { date: dateSel.value, topic };
+        stores.theorie.persist();
+        afterPlanChange();
+        showToast(`Plan für ${loc.name} gespeichert`);
+      });
+
+      row.append(label, dateSel, document.createTextNode('ist'), topicSel, save);
+
+      if (stores.theorie.state.plan.anchors[key] && loc.anchor) {
+        const back = document.createElement('button');
+        back.type = 'button';
+        back.className = 'link';
+        back.textContent = 'Website-Plan nehmen';
+        back.addEventListener('click', () => {
+          delete stores.theorie.state.plan.anchors[key];
+          stores.theorie.persist();
+          afterPlanChange();
+          showToast(`Plan für ${loc.name} zurückgesetzt`);
+        });
+        row.append(back);
+      }
+      box.append(row);
+    }
+  }
+
+  function afterPlanChange() {
+    refreshSchedule();
+    renderAdjust();
+    if (activeKey === 'theorie') renderList();
+    renderPlan();
+  }
+
+  $('planModes').addEventListener('click', e => {
+    const btn = e.target.closest('.seg-btn');
+    const plan = stores.theorie.state.plan;
+    if (!btn || plan.loc === btn.dataset.loc) return;
+    plan.loc = btn.dataset.loc;
+    stores.theorie.persist();
+    afterPlanChange();
+  });
+
+  // ---------- Konfetti ----------
+  const Confetti = (() => {
+    const canvas = $('confetti');
+    const ctx = canvas.getContext('2d');
+    const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', '#facc15'];
+    let parts = [];
+    let running = false;
+
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(innerWidth * dpr);
+      canvas.height = Math.round(innerHeight * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function burst(x, y, { count = 36, angle = -Math.PI / 2, spread = Math.PI * 2, speed = 7 } = {}) {
+      if (reduceMotion) return;
+      for (let i = 0; i < count; i++) {
+        const a = angle + (Math.random() - 0.5) * spread;
+        const v = speed * (0.45 + Math.random() * 0.85);
+        parts.push({
+          x, y,
+          vx: Math.cos(a) * v,
+          vy: Math.sin(a) * v,
+          w: 5 + Math.random() * 6,
+          h: 3 + Math.random() * 5,
+          rot: Math.random() * Math.PI,
+          vrot: (Math.random() - 0.5) * 0.35,
+          color: colors[(Math.random() * colors.length) | 0],
+          life: 0,
+          max: 70 + Math.random() * 60,
+        });
+      }
+      if (!running) {
+        running = true;
+        requestAnimationFrame(tick);
+      }
+    }
+
+    function tick() {
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      parts = parts.filter(p => p.life < p.max && p.y < innerHeight + 30);
+      for (const p of parts) {
+        p.life++;
+        p.vy += 0.22;
+        p.vx *= 0.985;
+        p.vy *= 0.985;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.vrot;
+        const fade = Math.max(0, (p.life - p.max * 0.7) / (p.max * 0.3));
+        ctx.save();
+        ctx.globalAlpha = 1 - fade;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        // Flattern: Höhe pendelt, damit die Schnipsel sich zu drehen scheinen
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.life * 0.12)) + 0.5);
+        ctx.restore();
+      }
+      if (parts.length) {
+        requestAnimationFrame(tick);
+      } else {
+        running = false;
+        ctx.clearRect(0, 0, innerWidth, innerHeight);
+      }
+    }
+
+    return { burst };
+  })();
+
+  // ---------- Liste ----------
+  const PENCIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+
+  const topicEl = id => list.querySelector(`.topic[data-id="${id}"]`);
+  const titleOf = id => state().names[id] || set().topics[id - 1].title;
+  const doneCount = () => Object.keys(state().done).length;
+
+  // Theorie: offene Themen nach Termin, dann offene ohne Termin, dann erledigte
+  function listOrder() {
+    const ids = set().topics.map((_, i) => i + 1);
+    if (!set().hasPlan) return ids;
+    const done = state().done;
+    const dated = ids.filter(id => !done[id] && sched.byTopic[id]).sort((a, b) => sched.byTopic[a].start - sched.byTopic[b].start);
+    const undated = ids.filter(id => !done[id] && !sched.byTopic[id]);
+    return [...dated, ...undated, ...ids.filter(id => done[id])];
+  }
+
+  function renderList() {
+    list.replaceChildren();
+    listOrder().forEach((id, idx) => {
+      const li = document.createElement('li');
+      li.className = 'item';
+      li.style.setProperty('--i', idx);
+      li.innerHTML = `
+        <div class="topic" data-id="${id}">
+          <button class="check" type="button" role="checkbox" aria-checked="false">
+            <span class="num" aria-hidden="true">${id}</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+          </button>
+          <div class="body">
+            <span class="tag">Als Nächstes</span>
+            <span class="when" hidden></span>
+            <h2 class="title"></h2>
+            <p class="desc"></p>
+            <div class="meta"><div><p class="date"></p></div></div>
+          </div>
+          <button class="edit" type="button" aria-label="Thema ${id} umbenennen">${PENCIL}</button>
+        </div>`;
+      list.appendChild(li);
+    });
+    renderAll();
+  }
+
+  function renderTopic(id) {
+    const el = topicEl(id);
+    if (!el) return;
+    const doneAt = state().done[id];
+    const custom = state().names[id];
+    el.classList.toggle('done', Boolean(doneAt));
+
+    const check = el.querySelector('.check');
+    check.setAttribute('aria-checked', String(Boolean(doneAt)));
+    check.setAttribute('aria-label', `Thema ${id}: ${titleOf(id)}`);
+
+    if (!el.classList.contains('editing')) el.querySelector('.title').textContent = titleOf(id);
+    const desc = el.querySelector('.desc');
+    desc.textContent = set().topics[id - 1].desc;
+    desc.hidden = Boolean(custom) && !set().keepDesc;
+
+    const when = el.querySelector('.when');
+    const s = set().hasPlan && sched.byTopic[id];
+    when.hidden = !s;
+    if (s) when.textContent = sessionText(s);
+
+    // Datum beim Abwählen stehen lassen, damit es sauber wegklappt statt zu springen
+    if (doneAt) el.querySelector('.date').textContent = `✓ Erledigt am ${doneFmt.format(new Date(doneAt))}`;
+  }
+
+  function renderAll() {
+    for (let id = 1; id <= total(); id++) renderTopic(id);
+  }
+
+  function replay(el, cls) {
+    el.classList.remove(cls);
+    void el.offsetWidth; // Reflow erzwingen, damit die Animation neu startet
+    el.classList.add(cls);
+  }
+
+  // ---------- Fortschritt ----------
+  let shownCount = 0;
+  let lastCount = 0;
+  let tweenRaf = 0;
+  let driveTimer = 0;
+
+  function tweenCount(to) {
+    cancelAnimationFrame(tweenRaf);
+    const from = shownCount;
+    const start = performance.now();
+    const dur = reduceMotion ? 0 : Math.min(1000, 250 + Math.abs(to - from) * 70);
+    const step = now => {
+      const t = dur ? Math.min(1, (now - start) / dur) : 1;
+      const eased = 1 - Math.pow(1 - t, 3);
+      shownCount = from + (to - from) * eased;
+      countEl.textContent = Math.round(shownCount);
+      if (t < 1) tweenRaf = requestAnimationFrame(step);
+      else shownCount = to;
+    };
+    tweenRaf = requestAnimationFrame(step);
+  }
+
+  function statusText(n) {
+    const left = total() - n;
+    if (n === 0) return set().hasPlan ? 'Hak ab, was du in der Theorie schon hattest.' : 'Hak ab, was du in der Fahrstunde geschafft hast.';
+    if (left === 0) return 'Alles erledigt. Bereit für die Prüfung! 🎉';
+    if (left === 1) return 'Nur noch 1 Thema. Du packst das! 🔥';
+    if (n <= total() / 4) return `Guter Start! Noch ${left} Themen.`;
+    if (n <= total() * 0.6) return `Läuft bei dir! Noch ${left} Themen.`;
+    return `Fast geschafft! Noch ${left} Themen.`;
+  }
+
+  function updateProgress() {
+    const n = doneCount();
+    const p = n / total();
+
+    ringFg.style.strokeDashoffset = RING_CIRC * (1 - p);
+    $('pct').textContent = `${Math.round(p * 100)} %`;
+    $('status').textContent = statusText(n);
+    resetBtn.disabled = n === 0;
+
+    if (n !== lastCount) {
+      tweenCount(n);
+      replay(countEl, 'bump');
+
+      // Auto fährt zur neuen Position – rückwärts, wenn etwas abgewählt wurde
+      road.classList.toggle('back', n < lastCount);
+      road.classList.add('moving');
+      clearTimeout(driveTimer);
+      driveTimer = setTimeout(() => road.classList.remove('moving', 'back'), 1200);
+    }
+    road.style.setProperty('--p', p);
+    road.classList.toggle('finished', n === total());
+
+    // Nächstes offenes Thema in der Liste hervorheben
+    const next = [...list.querySelectorAll('.topic')].find(el => !el.classList.contains('done'));
+    list.querySelectorAll('.topic').forEach(el => el.classList.toggle('next', el === next));
+
+    renderPlan();
+    lastCount = n;
+  }
+
+  function onStoreChanged(setKey) {
+    if (setKey === 'theorie') {
+      refreshSchedule();
+      renderAdjust();
+    }
+    if (setKey !== activeKey) return;
+    renderAll();
+    updateProgress();
+  }
+
+  // ---------- Tabs ----------
+  function switchTab(key, first) {
+    activeKey = key;
+    try { localStorage.setItem(TAB_KEY, key); } catch (e) { /* nur Komfort */ }
+    document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.set === key)));
+    $('heading').textContent = set().label;
+    $('total').textContent = `/${total()}`;
+    $('hint').textContent = set().hint;
+    hideToast();
+    disarmReset();
+    renderList();
+    showSaveInfo();
+    if (!first) updateProgress();
+  }
+
+  document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => {
+    if (tab.dataset.set !== activeKey) switchTab(tab.dataset.set);
+  }));
+
+  // ---------- Abhaken ----------
+  function toggle(id) {
+    const st = store();
+    const el = topicEl(id);
+
+    if (st.state.done[id]) {
+      const prev = st.state.done[id];
+      delete st.state.done[id];
+      st.persist();
+      renderTopic(id);
+      updateProgress();
+      showToast(`Thema ${id} wieder offen`, () => {
+        st.state.done[id] = prev;
+        st.persist();
+        renderTopic(id);
+        replay(el, 'pop');
+        updateProgress();
+      });
+      return;
+    }
+
+    st.state.done[id] = new Date().toISOString();
+    st.persist();
+    renderTopic(id);
+    replay(el, 'pop');
+    hideToast();
+
+    const r = el.querySelector('.check').getBoundingClientRect();
+    Confetti.burst(r.left + r.width / 2, r.top + r.height / 2, { count: 40, speed: 7 });
+    if (navigator.vibrate) navigator.vibrate(18);
+
+    updateProgress();
+    if (doneCount() === total()) setTimeout(celebrate, 700);
+  }
+
+  // .pop nach der längsten Teil-Animation (Ripple) wieder entfernen, sonst überschreibt sie später das Leuchten von .next
+  list.addEventListener('animationend', e => {
+    if (e.animationName === 'ripple') e.target.closest('.topic').classList.remove('pop');
+  });
+
+  list.addEventListener('click', e => {
+    const el = e.target.closest('.topic');
+    if (!el) return;
+    if (e.target.closest('.edit')) {
+      startEdit(el);
+      return;
+    }
+    if (el.classList.contains('editing')) return;
+    toggle(Number(el.dataset.id));
+  });
+
+  // ---------- Umbenennen ----------
+  function startEdit(el) {
+    if (el.classList.contains('editing')) return;
+    // Klick auf den Stift während der Bearbeitung beendet sie nur (Blur), statt sie neu zu öffnen
+    if (Date.now() - Number(el.dataset.closedAt || 0) < 400) return;
+
+    const st = store();
+    const topics = set().topics;
+    const id = Number(el.dataset.id);
+    const titleEl = el.querySelector('.title');
+    const input = document.createElement('input');
+    input.className = 'title-input';
+    input.type = 'text';
+    input.maxLength = 60;
+    input.value = titleOf(id);
+    input.setAttribute('aria-label', `Neuer Name für Thema ${id}`);
+
+    el.classList.add('editing');
+    titleEl.replaceChildren(input);
+    input.focus();
+    input.select();
+
+    let finished = false;
+    const finish = save => {
+      if (finished) return;
+      finished = true;
+      if (save) {
+        const value = input.value.trim().replace(/\s+/g, ' ');
+        if (!value || value === topics[id - 1].title) delete st.state.names[id];
+        else st.state.names[id] = value;
+        st.persist();
+      }
+      el.dataset.closedAt = Date.now();
+      el.classList.remove('editing');
+      if (st === store()) renderTopic(id);
+    };
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); finish(true); el.querySelector('.check').focus(); }
+      else if (e.key === 'Escape') { finish(false); el.querySelector('.check').focus(); }
+    });
+    input.addEventListener('blur', () => finish(true));
+  }
+
+  // ---------- Toast mit Rückgängig ----------
+  const toast = $('toast');
+  const undoBtn = $('toastUndo');
+  let toastTimer = 0;
+  let undoFn = null;
+
+  function showToast(text, onUndo) {
+    $('toastText').textContent = text;
+    undoFn = onUndo || null;
+    undoBtn.hidden = !undoFn;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, 5000);
+  }
+
+  function hideToast() {
+    toast.classList.remove('show');
+    clearTimeout(toastTimer);
+    undoFn = null;
+  }
+
+  undoBtn.addEventListener('click', () => {
+    const fn = undoFn;
+    hideToast();
+    if (fn) fn();
+  });
+
+  // ---------- Zurücksetzen ----------
+  // Zweistufig statt confirm(), das im Artifact-Viewer nicht angezeigt wird
+  let resetArmed = false;
+  let resetTimer = 0;
+
+  function disarmReset() {
+    resetArmed = false;
+    clearTimeout(resetTimer);
+    resetBtn.textContent = 'Alles zurücksetzen';
+    resetBtn.classList.remove('armed');
+  }
+
+  resetBtn.addEventListener('click', () => {
+    if (!doneCount()) return;
+    if (!resetArmed) {
+      resetArmed = true;
+      resetBtn.textContent = 'Wirklich alle Haken entfernen?';
+      resetBtn.classList.add('armed');
+      resetTimer = setTimeout(disarmReset, 4000);
+      return;
+    }
+    disarmReset();
+    const st = store();
+    const prev = { ...st.state.done };
+    st.state.done = {};
+    st.persist();
+    renderAll();
+    updateProgress();
+    showToast('Alle Haken entfernt', () => {
+      st.state.done = prev;
+      st.persist();
+      if (st === store()) {
+        renderAll();
+        updateProgress();
+      }
+    });
+  });
+
+  // ---------- Feier ----------
+  const overlay = $('overlay');
+
+  function celebrate() {
+    if (doneCount() !== total()) return;
+    $('overlayTitle').textContent = set().done.title;
+    $('overlayText').textContent = set().done.text;
+    overlay.hidden = false;
+    requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('show')));
+    $('overlayClose').focus();
+
+    const h = innerHeight;
+    const w = innerWidth;
+    for (let k = 0; k < 5; k++) {
+      setTimeout(() => {
+        Confetti.burst(0, h * 0.85, { count: 45, angle: -Math.PI / 3, spread: 0.9, speed: 20 });
+        Confetti.burst(w, h * 0.85, { count: 45, angle: -Math.PI * 2 / 3, spread: 0.9, speed: 20 });
+      }, k * 260);
+    }
+  }
+
+  function closeOverlay() {
+    overlay.classList.remove('show');
+    setTimeout(() => { overlay.hidden = true; }, 300);
+  }
+
+  $('overlayClose').addEventListener('click', closeOverlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeOverlay(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !overlay.hidden) closeOverlay(); });
+
+  // Änderungen aus einem anderen Tab übernehmen
+  window.addEventListener('storage', e => {
+    const st = Object.values(stores).find(s => SETS[s.key].storageKey === e.key);
+    if (!st) return;
+    st.state = st.readLocal();
+    onStoreChanged(st.key);
+  });
+
+  // Wer die App am nächsten Tag wieder öffnet, bekommt die Termine ab heute
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    refreshSchedule();
+    renderAdjust();
+    renderAll();
+    renderPlan();
+  });
+
+  // ---------- Start ----------
+  ringFg.style.strokeDasharray = RING_CIRC;
+  ringFg.style.strokeDashoffset = RING_CIRC;
+  refreshSchedule();
+  renderAdjust();
+  switchTab(activeKey, true);
+  renderPlan();
+  // Zwei Frames warten, damit Ring, Zähler und Auto vom Start aus zum gespeicherten Stand animieren
+  requestAnimationFrame(() => requestAnimationFrame(updateProgress));
+  updateWarn();
+  connectRemote();
+})();
+</script>
+</body>
+</html>
