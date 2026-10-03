@@ -10,7 +10,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
 <style>
-  /* Layout: eine Spalte; oben klebt der Fortschritt (Ring + Straße), darunter die 12 Themenkarten.
+  /* Layout: eine Spalte; oben Tabs (Theorie/Fahrstunden), darunter klebt der Fortschritt (Ring + Straße),
+     bei Theorie folgt der Bogen mit Enddatum, dann die Themenkarten.
      Schrift: Barlow, angelehnt an Straßenschilder; Akzent: Verkehrszeichen-Blau. */
   :root {
     --font-display: "Barlow Condensed", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -459,6 +460,109 @@
 
   #confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; }
 
+  /* ---------- Tabs ---------- */
+  .tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-top: 12px;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--border);
+  }
+  .tab {
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    transition: background-color .25s, color .25s, box-shadow .25s;
+  }
+  .tab small { margin-left: 4px; font-family: var(--font-body); font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+  .tab[aria-selected="true"] { background: var(--card); color: var(--text); box-shadow: var(--shadow); }
+  .tab:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+
+  /* ---------- Theorie-Bogen ---------- */
+  .plan {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--card);
+    box-shadow: var(--shadow);
+  }
+  .plan[hidden] { display: none; }
+  .plan-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .plan-date {
+    margin-top: 2px;
+    font-family: var(--font-display);
+    font-size: 34px;
+    font-weight: 800;
+    line-height: 1.05;
+    color: var(--accent);
+    text-wrap: balance;
+  }
+  .plan-sub { margin-top: 4px; font-size: 14px; color: var(--muted); }
+  .plan-alert { padding: 10px 12px; border-radius: 10px; background: var(--warn-bg); color: var(--warn-fg); font-size: 14px; }
+  .plan-alert[hidden] { display: none; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--card);
+    font-size: 14px;
+    font-weight: 600;
+    transition: background-color .2s, border-color .2s, color .2s;
+  }
+  .chip small { font-size: 13px; font-weight: 500; color: var(--muted); }
+  .chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .chip[aria-pressed="true"] small { color: inherit; }
+  .chip:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .plan-note { font-size: 13px; color: var(--muted); }
+  .adjust summary { width: fit-content; font-size: 14px; font-weight: 600; color: var(--accent); cursor: pointer; }
+  .adjust summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  .adjust-rows { display: grid; gap: 12px; margin-top: 10px; }
+  .adjust-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 14px; }
+  .adjust-row strong { flex-basis: 100%; }
+  .adjust-row select {
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--text);
+    font: inherit;
+  }
+  .adjust-row button {
+    padding: 6px 12px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--card);
+    font-weight: 700;
+  }
+  .adjust-row button.link { padding: 6px 4px; background: transparent; color: var(--accent); font-weight: 600; }
+  .adjust-row select:focus-visible, .adjust-row button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  /* Termin auf der Themenkarte */
+  .when {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .when[hidden], .topic.done .when { display: none; }
+
   /* ---------- Animationen ---------- */
   @keyframes enter { from { opacity: 0; transform: translateY(14px) scale(.98); } }
   @keyframes pop { 35% { transform: scale(1.025); } }
@@ -487,6 +591,11 @@
 <body>
 
 <div class="page">
+  <div class="tabs" role="tablist" aria-label="Liste wählen">
+    <button class="tab" type="button" role="tab" id="tab-theorie" data-set="theorie" aria-selected="true" aria-controls="topics">Theorie<small>14</small></button>
+    <button class="tab" type="button" role="tab" id="tab-fahrstunden" data-set="fahrstunden" aria-selected="false" aria-controls="topics">Fahrstunden<small>12</small></button>
+  </div>
+
   <header class="hero">
     <div class="hero-inner">
       <div class="ring-wrap">
@@ -500,12 +609,12 @@
           <circle class="ring-bg" cx="60" cy="60" r="52"/>
           <circle class="ring-fg" id="ringFg" cx="60" cy="60" r="52"/>
         </svg>
-        <div class="ring-label"><span><span class="count" id="count">0</span><small>/12</small></span></div>
+        <div class="ring-label"><span><span class="count" id="count">0</span><small id="total">/14</small></span></div>
       </div>
 
       <div>
         <div class="hero-top">
-          <h1>Fahrstunden</h1>
+          <h1 id="heading">Theorie</h1>
           <span class="pct" id="pct">0 %</span>
         </div>
         <p class="status" id="status" aria-live="polite"></p>
@@ -540,7 +649,26 @@
 
   <p class="warn" id="warn" hidden>⚠️ Dein Browser erlaubt hier kein Speichern (z.&nbsp;B. privater Modus). Dein Fortschritt geht beim Schließen verloren.</p>
 
-  <p class="hint">Tippe auf ein Thema, um es abzuhaken. Mit dem Stift benennst du es um.</p>
+  <section class="plan" id="plan" aria-labelledby="planEyebrow">
+    <div>
+      <p class="plan-eyebrow" id="planEyebrow">Theorie fertig am</p>
+      <p class="plan-date" id="planDate">–</p>
+      <p class="plan-sub" id="planSub"></p>
+    </div>
+    <p class="plan-alert" id="planAlert" hidden></p>
+    <div class="chips" role="group" aria-label="Standort">
+      <button class="chip" type="button" data-loc="berlin" aria-pressed="true">Berlin <small>Di + Do</small></button>
+      <button class="chip" type="button" data-loc="mahlow" aria-pressed="false">Mahlow <small>Mo + Mi</small></button>
+      <button class="chip" type="button" data-loc="beide" aria-pressed="false">Beide <small>Mo bis Do</small></button>
+    </div>
+    <p class="plan-note">Termine nach dem Theorieplan von Peggy's Fahrschule: Berlin (Lichtenrader Damm 40) Di + Do 18:30–20:00, Mahlow (Marktplatz 2) Mo + Mi 18:00–19:30. Die Themen laufen der Reihe nach von 1 bis 14. Feiertage sind eingerechnet, Ferienkurse nicht.</p>
+    <details class="adjust">
+      <summary>Plan anpassen</summary>
+      <div class="adjust-rows" id="adjustRows"></div>
+    </details>
+  </section>
+
+  <p class="hint" id="hint"></p>
 
   <ol class="topics" id="topics"></ol>
 
@@ -558,8 +686,8 @@
 <div class="overlay" id="overlay" hidden>
   <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="overlayTitle">
     <span class="trophy" aria-hidden="true">🏆</span>
-    <h2 id="overlayTitle">Alle 12 Themen geschafft!</h2>
-    <p>Du bist bereit für die Prüfung. Viel Erfolg! 🍀</p>
+    <h2 id="overlayTitle"></h2>
+    <p id="overlayText"></p>
     <button type="button" id="overlayClose">Weiter</button>
   </div>
 </div>
@@ -570,23 +698,69 @@
 (() => {
   'use strict';
 
-  // Die 12 Themen – über den Stift-Button in der App umbenennbar.
-  const TOPICS = [
-    { title: 'Grundbedienung & Anfahren', desc: 'Sitz, Spiegel und Lenkrad einstellen · Motor starten · Anfahren und Anhalten' },
-    { title: 'Schalten & Lenken', desc: 'Gänge wechseln · Lenkradhaltung · Kurven fahren' },
-    { title: 'Bremsen & Anfahren am Berg', desc: 'Vorausschauend bremsen · Rollen lassen · Steigung und Gefälle' },
-    { title: 'Abbiegen & Fahrstreifenwechsel', desc: 'Spiegel · Schulterblick · Blinken · Einordnen' },
-    { title: 'Vorfahrt & Kreuzungen', desc: 'Rechts vor links · Ampeln · Vorfahrtsschilder' },
-    { title: 'Kreisverkehr & Verkehrszeichen', desc: 'Ein- und Ausfahren · Richtig blinken · Schilder erkennen' },
-    { title: 'Fußgänger, Radfahrer & Bahnübergang', desc: 'Zebrastreifen · Radwege · Schranken und Andreaskreuz' },
-    { title: 'Grundfahraufgaben', desc: 'Einparken längs und quer · Rückwärtsfahren · Umkehren · Gefahrbremsung' },
-    { title: 'Überlandfahrt', desc: 'Sonderfahrt · Landstraße · Überholen · Wildwechsel' },
-    { title: 'Autobahnfahrt', desc: 'Sonderfahrt · Auffahren und Abfahren · Spurwechsel bei hohem Tempo' },
-    { title: 'Dämmerung & Dunkelheit', desc: 'Sonderfahrt · Licht richtig bedienen · Blendung' },
-    { title: 'Prüfungsvorbereitung', desc: 'Testfahrt unter Prüfungsbedingungen' },
-  ];
-  const TOTAL = TOPICS.length;
-  const STORAGE_KEY = 'fahrstunden-checkliste-v1';
+  // ---------- Inhalte ----------
+  // Beide Listen sind über den Stift-Button in der App umbenennbar.
+  const SETS = {
+    theorie: {
+      label: 'Theorie',
+      storageKey: 'theorie-checkliste-v1',
+      doc: 'theorie',
+      hasPlan: true,
+      keepDesc: true, // Grundstoff/Zusatzstoff stimmt auch bei eigenem Namen
+      hint: 'Hak ein Thema ab, wenn du in der Theoriestunde warst. Die Karten stehen in der Reihenfolge deiner nächsten Termine.',
+      done: { title: 'Alle 14 Theorie-Themen geschafft!', text: 'Jetzt fehlt nur noch die Theorieprüfung. Viel Erfolg! 🍀' },
+      topics: [
+        { title: 'Persönliche Voraussetzungen', desc: 'Grundstoff' },
+        { title: 'Rechtliche Rahmenbedingungen', desc: 'Grundstoff' },
+        { title: 'Grundregeln, Verkehrszeichen und Verkehrseinrichtungen', desc: 'Grundstoff' },
+        { title: 'Straßenverkehrssystem und seine Nutzung', desc: 'Grundstoff' },
+        { title: 'Vorfahrt und Verkehrsregelungen', desc: 'Grundstoff' },
+        { title: 'Verkehrsregelungen und Bahnübergänge', desc: 'Grundstoff' },
+        { title: 'Geschwindigkeit, Abstand und umweltschonende Fahrweise', desc: 'Grundstoff' },
+        { title: 'Andere Teilnehmer im Straßenverkehr, Verkehrsbeobachtung', desc: 'Grundstoff' },
+        { title: 'Verkehrsverhalten bei Fahrmanövern', desc: 'Grundstoff' },
+        { title: 'Ruhender Verkehr', desc: 'Grundstoff' },
+        { title: 'Verhalten in besonderen Situationen, Folgen von Verstößen', desc: 'Grundstoff' },
+        { title: 'Risikofaktor Mensch', desc: 'Grundstoff' },
+        { title: 'Technische Bedingungen, Personen- und Güterbeförderung', desc: 'Zusatzstoff Klasse B' },
+        { title: 'Fahren mit Solo-Kfz und Zügen, umweltschonender Umgang', desc: 'Zusatzstoff Klasse B' },
+      ],
+    },
+    fahrstunden: {
+      label: 'Fahrstunden',
+      storageKey: 'fahrstunden-checkliste-v1',
+      doc: 'fahrstunden',
+      hasPlan: false,
+      keepDesc: false,
+      hint: 'Tippe auf ein Thema, um es abzuhaken. Mit dem Stift benennst du es um.',
+      done: { title: 'Alle 12 Themen geschafft!', text: 'Du bist bereit für die Prüfung. Viel Erfolg! 🍀' },
+      topics: [
+        { title: 'Grundbedienung & Anfahren', desc: 'Sitz, Spiegel und Lenkrad einstellen · Motor starten · Anfahren und Anhalten' },
+        { title: 'Schalten & Lenken', desc: 'Gänge wechseln · Lenkradhaltung · Kurven fahren' },
+        { title: 'Bremsen & Anfahren am Berg', desc: 'Vorausschauend bremsen · Rollen lassen · Steigung und Gefälle' },
+        { title: 'Abbiegen & Fahrstreifenwechsel', desc: 'Spiegel · Schulterblick · Blinken · Einordnen' },
+        { title: 'Vorfahrt & Kreuzungen', desc: 'Rechts vor links · Ampeln · Vorfahrtsschilder' },
+        { title: 'Kreisverkehr & Verkehrszeichen', desc: 'Ein- und Ausfahren · Richtig blinken · Schilder erkennen' },
+        { title: 'Fußgänger, Radfahrer & Bahnübergang', desc: 'Zebrastreifen · Radwege · Schranken und Andreaskreuz' },
+        { title: 'Grundfahraufgaben', desc: 'Einparken längs und quer · Rückwärtsfahren · Umkehren · Gefahrbremsung' },
+        { title: 'Überlandfahrt', desc: 'Sonderfahrt · Landstraße · Überholen · Wildwechsel' },
+        { title: 'Autobahnfahrt', desc: 'Sonderfahrt · Auffahren und Abfahren · Spurwechsel bei hohem Tempo' },
+        { title: 'Dämmerung & Dunkelheit', desc: 'Sonderfahrt · Licht richtig bedienen · Blendung' },
+        { title: 'Prüfungsvorbereitung', desc: 'Testfahrt unter Prüfungsbedingungen' },
+      ],
+    },
+  };
+
+  // Theorieplan von Peggy's Fahrschule. Die 14 Themen laufen der Reihe nach durch;
+  // der Anker sagt, welches Thema an welchem Termin dran ist (Berlin: Thema 1 am Do, 01.10.2026).
+  // Für Mahlow war kein aktueller Plan abrufbar, deshalb trägt man ihn in der App unter „Plan anpassen“ ein.
+  const LOCATIONS = {
+    berlin: { name: 'Berlin', days: [2, 4], dayText: 'Di + Do', start: '18:30', end: '20:00', region: 'BE', anchor: { date: '2026-10-01', topic: 1 } },
+    mahlow: { name: 'Mahlow', days: [1, 3], dayText: 'Mo + Mi', start: '18:00', end: '19:30', region: 'BB', anchor: null },
+  };
+  const THEORY_TOTAL = SETS.theorie.topics.length;
+  const LOC_CHOICES = ['berlin', 'mahlow', 'beide'];
+  const TAB_KEY = 'checkliste-tab';
   const RING_CIRC = 2 * Math.PI * 52;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -595,144 +769,248 @@
   const road = $('road');
   const ringFg = $('ringFg');
   const countEl = $('count');
+  const resetBtn = $('reset');
 
-  // ---------- Speichern & Laden ----------
-  function emptyState() { return { done: {}, names: {} }; }
+  // ---------- Datum & Feiertage ----------
+  const pad = n => String(n).padStart(2, '0');
+  const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parseIso = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d, 12); };
+  const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, 12);
+  const atTime = (d, hhmm) => { const [h, m] = hhmm.split(':').map(Number); return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m); };
+  const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+  const shortDate = d => `${WEEKDAYS[d.getDay()]}, ${pad(d.getDate())}.${pad(d.getMonth() + 1)}.`;
+  const longDate = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+  const doneFmt = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-  function sanitize(data) {
-    const state = emptyState();
-    if (!data || typeof data !== 'object') return state;
-    for (let id = 1; id <= TOTAL; id++) {
-      const doneAt = data.done && data.done[id];
-      if (typeof doneAt === 'string' && !isNaN(Date.parse(doneAt))) state.done[id] = doneAt;
-      const name = data.names && data.names[id];
-      if (typeof name === 'string' && name.trim()) state.names[id] = name.trim().slice(0, 60);
-    }
-    return state;
+  function easterSunday(y) {
+    const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
+    const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const month = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(y, month - 1, day, 12);
   }
 
+  // Gesetzliche Feiertage in Berlin (BE) bzw. Brandenburg (BB), dazu Heiligabend und Silvester
+  const holidayCache = {};
+  function holidays(y, region) {
+    const key = y + region;
+    if (holidayCache[key]) return holidayCache[key];
+    const e = easterSunday(y);
+    const days = [`${y}-01-01`, iso(addDays(e, -2)), iso(addDays(e, 1)), `${y}-05-01`, iso(addDays(e, 39)),
+      iso(addDays(e, 50)), `${y}-10-03`, `${y}-12-24`, `${y}-12-25`, `${y}-12-26`, `${y}-12-31`];
+    if (region === 'BE') days.push(`${y}-03-08`);
+    if (region === 'BB') days.push(`${y}-10-31`);
+    return (holidayCache[key] = new Set(days));
+  }
+  const isHoliday = (d, region) => holidays(d.getFullYear(), region).has(iso(d));
+  const isClassDay = (loc, d) => loc.days.includes(d.getDay()) && !isHoliday(d, loc.region);
+
+  // Nächste Termine eines Standorts ab jetzt; fällt ein Termin auf einen Feiertag, kommt das Thema beim nächsten Termin
+  function upcomingSessions(locKey, anchor, now, count) {
+    const loc = LOCATIONS[locKey];
+    const out = [];
+    let d = parseIso(anchor.date);
+    let k = 0;
+    for (let n = 0; n < 4000 && out.length < count; n++, d = addDays(d, 1)) {
+      if (!isClassDay(loc, d)) continue;
+      const topic = ((anchor.topic - 1 + k) % THEORY_TOTAL) + 1;
+      k++;
+      if (atTime(d, loc.end) < now) continue;
+      out.push({ loc: locKey, topic, date: d, start: atTime(d, loc.start) });
+    }
+    return out;
+  }
+
+  function nextClassDates(locKey, now, count) {
+    const loc = LOCATIONS[locKey];
+    const out = [];
+    let d = parseIso(iso(now));
+    for (let n = 0; n < 60 && out.length < count; n++, d = addDays(d, 1)) {
+      if (isClassDay(loc, d) && atTime(d, loc.end) >= now) out.push(d);
+    }
+    return out;
+  }
+
+  // ---------- Speichern ----------
   // Lokal (localStorage) für sofortiges Laden. Läuft die Seite als Artifact in claude.ai,
   // wird zusätzlich im Claude-Konto gespeichert, damit Handy und PC denselben Stand haben.
-  let localOk = true;
-
-  function readLocal() {
-    let raw = null;
-    try {
-      raw = localStorage.getItem(STORAGE_KEY);
-    } catch (e) {
-      localOk = false;
-      return emptyState();
+  function sanitize(set, data) {
+    const total = set.topics.length;
+    const out = { done: {}, names: {} };
+    if (set.hasPlan) out.plan = { loc: 'berlin', anchors: {} };
+    if (!data || typeof data !== 'object') return out;
+    for (let id = 1; id <= total; id++) {
+      const doneAt = data.done && data.done[id];
+      if (typeof doneAt === 'string' && !isNaN(Date.parse(doneAt))) out.done[id] = doneAt;
+      const name = data.names && data.names[id];
+      if (typeof name === 'string' && name.trim()) out.names[id] = name.trim().slice(0, 60);
     }
-    if (!raw) return emptyState();
-    try {
-      return sanitize(JSON.parse(raw));
-    } catch (e) {
-      return emptyState();
+    const plan = set.hasPlan && data.plan;
+    if (plan && typeof plan === 'object') {
+      if (LOC_CHOICES.includes(plan.loc)) out.plan.loc = plan.loc;
+      for (const key of Object.keys(LOCATIONS)) {
+        const a = plan.anchors && plan.anchors[key];
+        if (a && typeof a.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(a.date)
+            && Number.isInteger(a.topic) && a.topic >= 1 && a.topic <= THEORY_TOTAL) {
+          out.plan.anchors[key] = { date: a.date, topic: a.topic };
+        }
+      }
     }
+    return out;
   }
 
-  function writeLocal() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      localOk = true;
-    } catch (e) {
-      localOk = false;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  let remotePending = false;
+
+  function createStore(setKey) {
+    const set = SETS[setKey];
+    const st = { key: setKey, state: null, localOk: true, ref: null, synced: false, dirty: false, writing: false, writeAgain: false, mode: 'local' };
+
+    st.readLocal = () => {
+      let raw = null;
+      try {
+        raw = localStorage.getItem(set.storageKey);
+      } catch (e) {
+        st.localOk = false;
+        return sanitize(set, null);
+      }
+      if (!raw) return sanitize(set, null);
+      try {
+        return sanitize(set, JSON.parse(raw));
+      } catch (e) {
+        return sanitize(set, null);
+      }
+    };
+
+    st.writeLocal = () => {
+      try {
+        localStorage.setItem(set.storageKey, JSON.stringify(st.state));
+        st.localOk = true;
+      } catch (e) {
+        st.localOk = false;
+      }
+      updateWarn();
+    };
+
+    st.setMode = mode => {
+      st.mode = mode;
+      if (setKey === activeKey) showSaveInfo();
+    };
+
+    st.persist = () => {
+      st.state = sanitize(set, st.state);
+      st.dirty = true;
+      st.writeLocal();
+      st.flush();
+    };
+
+    async function setWithRetry(body) {
+      try {
+        await st.ref.set(body);
+      } catch (e) {
+        const final = ['invalid_argument', 'quota_exceeded', 'resource_exhausted', 'revoked', 'not_granted'];
+        if (e && final.includes(e.code)) throw e;
+        await sleep(400 + Math.random() * 800);
+        await st.ref.set(body);
+      }
     }
-    updateWarn();
+
+    st.flush = async () => {
+      if (!st.ref || !st.synced) return;
+      if (st.writing) { st.writeAgain = true; return; }
+      st.writing = true;
+      st.setMode('saving');
+      try {
+        do {
+          st.writeAgain = false;
+          await setWithRetry(JSON.parse(JSON.stringify(st.state)));
+        } while (st.writeAgain);
+        st.dirty = false;
+        st.setMode('cloud');
+      } catch (e) {
+        st.setMode('error');
+      } finally {
+        st.writing = false;
+      }
+    };
+
+    const hasData = () => Object.keys(st.state.done).length || Object.keys(st.state.names).length
+      || (st.state.plan && (st.state.plan.loc !== 'berlin' || Object.keys(st.state.plan.anchors).length));
+
+    st.apply = snap => {
+      // Eigene Schreibvorgänge kommen als Echo zurück, die ignorieren wir
+      if (snap.metadata.hasPendingWrites || st.writing) return;
+      if (!snap.exists) {
+        if (snap.metadata.fromCache) return; // noch nicht sicher, ob es wirklich leer ist
+        if (!st.synced) {
+          st.synced = true;
+          updateWarn();
+          // Erstes Mal im Konto: bisherigen Stand von diesem Gerät mitnehmen
+          if (hasData()) st.flush();
+          else st.setMode('cloud');
+        }
+        return;
+      }
+      const remote = sanitize(set, snap.data());
+      if (!st.synced) {
+        st.synced = true;
+        updateWarn();
+        if (st.dirty) { st.flush(); return; } // hier schon geändert, bevor das Konto antwortete
+      }
+      if (JSON.stringify(remote) !== JSON.stringify(st.state)) {
+        st.state = remote;
+        st.writeLocal();
+        onStoreChanged(setKey);
+      }
+      st.setMode('cloud');
+    };
+
+    st.attach = (db, uid) => {
+      st.ref = db.doc(`data/users/${uid}/${set.doc}`);
+      st.ref.onSnapshot(st.apply, () => {
+        st.ref = null;
+        st.synced = false;
+        st.setMode(st.localOk ? 'local' : 'error');
+        updateWarn();
+      });
+    };
+
+    st.state = st.readLocal();
+    return st;
   }
 
-  let state = readLocal();
+  const stores = { theorie: createStore('theorie'), fahrstunden: createStore('fahrstunden') };
 
-  let remoteRef = null;     // Dokument im Claude-Konto, falls verfügbar
-  let remotePending = false; // Verbindung wird noch aufgebaut
-  let synced = false;       // erster Stand aus dem Konto ist da
-  let dirty = false;        // Änderungen, die noch nicht im Konto sind
-  let writing = false;
-  let writeAgain = false;
+  let activeKey = 'theorie';
+  try {
+    const saved = localStorage.getItem(TAB_KEY);
+    if (saved && SETS[saved]) activeKey = saved;
+  } catch (e) { /* Tab-Wahl ist nur Komfort */ }
 
-  function persist() {
-    dirty = true;
-    writeLocal();
-    flushRemote();
-  }
+  const set = () => SETS[activeKey];
+  const store = () => stores[activeKey];
+  const state = () => store().state;
+  const total = () => set().topics.length;
 
-  function setSaveInfo(mode) {
+  function showSaveInfo() {
+    const st = store();
     const texts = {
       local: 'Wird automatisch auf diesem Gerät gespeichert.',
       saving: 'Speichert …',
       cloud: 'Gespeichert in deinem Claude-Konto, auf Handy und PC gleich.',
-      error: localOk
+      error: st.localOk
         ? 'Speichern im Konto hat nicht geklappt. Auf diesem Gerät ist alles gesichert.'
         : 'Speichern hat nicht geklappt. Lade die Seite neu und versuch es noch einmal.',
     };
-    $('saveInfo').textContent = texts[mode];
+    $('saveInfo').textContent = texts[st.mode];
   }
 
   function updateWarn() {
-    $('warn').hidden = localOk || remotePending || Boolean(remoteRef && synced);
-  }
-
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-  async function setWithRetry(body) {
-    try {
-      await remoteRef.set(body);
-    } catch (e) {
-      const final = ['invalid_argument', 'quota_exceeded', 'resource_exhausted', 'revoked', 'not_granted'];
-      if (e && final.includes(e.code)) throw e;
-      await sleep(400 + Math.random() * 800);
-      await remoteRef.set(body);
-    }
-  }
-
-  async function flushRemote() {
-    if (!remoteRef || !synced) return;
-    if (writing) { writeAgain = true; return; }
-    writing = true;
-    setSaveInfo('saving');
-    try {
-      do {
-        writeAgain = false;
-        await setWithRetry(JSON.parse(JSON.stringify(state)));
-      } while (writeAgain);
-      dirty = false;
-      setSaveInfo('cloud');
-    } catch (e) {
-      setSaveInfo('error');
-    } finally {
-      writing = false;
-    }
-  }
-
-  function applyRemote(snap) {
-    // Eigene Schreibvorgänge kommen als Echo zurück, die ignorieren wir
-    if (snap.metadata.hasPendingWrites || writing) return;
-
-    if (!snap.exists) {
-      if (snap.metadata.fromCache) return; // noch nicht sicher, ob es wirklich leer ist
-      if (!synced) {
-        synced = true;
-        updateWarn();
-        // Erstes Mal im Konto: bisherigen Stand von diesem Gerät mitnehmen
-        if (doneCount() || Object.keys(state.names).length) flushRemote();
-        else setSaveInfo('cloud');
-      }
-      return;
-    }
-
-    const remote = sanitize(snap.data());
-    if (!synced) {
-      synced = true;
-      updateWarn();
-      if (dirty) { flushRemote(); return; } // hier schon abgehakt, bevor das Konto antwortete
-    }
-    if (JSON.stringify(remote) !== JSON.stringify(state)) {
-      state = remote;
-      writeLocal();
-      renderAll();
-      updateProgress();
-    }
-    setSaveInfo('cloud');
+    const all = Object.values(stores || {});
+    const localBad = all.some(s => !s.localOk);
+    const remoteGood = all.length > 0 && all.every(s => s.ref && s.synced);
+    $('warn').hidden = !localBad || remotePending || remoteGood;
   }
 
   async function connectRemote() {
@@ -742,21 +1020,161 @@
     try {
       const [db, user] = await Promise.all([claude.use('db'), claude.use('user')]);
       const uid = db && user ? await user.id() : null;
-      if (!uid) return;
-      remoteRef = db.doc(`data/users/${uid}/fahrstunden`);
-      remoteRef.onSnapshot(applyRemote, () => {
-        remoteRef = null;
-        synced = false;
-        setSaveInfo(localOk ? 'local' : 'error');
-        updateWarn();
-      });
+      if (uid) Object.values(stores).forEach(s => s.attach(db, uid));
     } catch (e) {
-      remoteRef = null;
+      Object.values(stores).forEach(s => { s.ref = null; });
     } finally {
       remotePending = false;
       updateWarn();
     }
   }
+
+  // ---------- Theorie-Bogen ----------
+  let sched = { byTopic: {}, usable: [], missing: [] };
+
+  const anchorFor = locKey => (stores.theorie.state.plan.anchors[locKey] || LOCATIONS[locKey].anchor);
+  const chosenLocs = () => {
+    const loc = stores.theorie.state.plan.loc;
+    return loc === 'beide' ? ['berlin', 'mahlow'] : [loc];
+  };
+
+  // Frühester kommender Termin für jedes Thema; das ist zugleich der schnellste Weg, alles zu schaffen
+  function refreshSchedule() {
+    const now = new Date();
+    const wanted = chosenLocs();
+    const usable = wanted.filter(k => anchorFor(k));
+    const missing = wanted.filter(k => !anchorFor(k));
+    const all = [];
+    for (const k of usable) all.push(...upcomingSessions(k, anchorFor(k), now, THEORY_TOTAL));
+    all.sort((a, b) => a.start - b.start);
+    const byTopic = {};
+    for (const s of all) if (!byTopic[s.topic]) byTopic[s.topic] = s;
+    sched = { byTopic, usable, missing };
+  }
+
+  const sessionText = s => `${shortDate(s.date)} · ${s.start.getHours()}:${pad(s.start.getMinutes())} Uhr · ${LOCATIONS[s.loc].name}`;
+
+  function renderPlan() {
+    const card = $('plan');
+    card.hidden = !set().hasPlan;
+    if (card.hidden) return;
+
+    const plan = stores.theorie.state.plan;
+    document.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.loc === plan.loc)));
+
+    const st = stores.theorie.state;
+    const open = [];
+    for (let id = 1; id <= THEORY_TOTAL; id++) if (!st.done[id]) open.push(id);
+    const picks = open.map(id => sched.byTopic[id]).filter(Boolean).sort((a, b) => a.start - b.start);
+
+    const alert = $('planAlert');
+    const missingNames = sched.missing.map(k => LOCATIONS[k].name).join(' und ');
+    alert.hidden = !sched.missing.length || !open.length;
+    if (!alert.hidden) {
+      alert.textContent = sched.usable.length
+        ? `${missingNames} ist noch nicht eingerechnet: Für ${missingNames} fehlt der aktuelle Plan. Trag unter „Plan anpassen“ ein, welches Thema am nächsten Termin dran ist.`
+        : `Für ${missingNames} fehlt der aktuelle Plan. Trag unter „Plan anpassen“ ein, welches Thema am nächsten Termin dran ist, dann rechne ich dein Enddatum aus.`;
+    }
+
+    if (!open.length) {
+      $('planEyebrow').textContent = 'Theorie';
+      $('planDate').textContent = 'Alles erledigt 🎉';
+      $('planSub').textContent = 'Alle 14 Themen sind abgehakt. Jetzt fehlt nur noch die Theorieprüfung.';
+      return;
+    }
+    if (!picks.length) {
+      $('planEyebrow').textContent = 'Theorie fertig am';
+      $('planDate').textContent = '–';
+      $('planSub').textContent = `Noch ${open.length} ${open.length === 1 ? 'Thema' : 'Themen'} offen.`;
+      return;
+    }
+    const last = picks[picks.length - 1];
+    const days = Math.round((parseIso(iso(last.date)) - parseIso(iso(new Date()))) / 864e5);
+    const span = days < 14 ? `in ${days} ${days === 1 ? 'Tag' : 'Tagen'}` : `in ${Math.ceil(days / 7)} Wochen`;
+    const n = picks.length;
+    $('planEyebrow').textContent = 'Theorie fertig am';
+    $('planDate').textContent = longDate.format(last.date);
+    $('planSub').textContent = `${n} ${n === 1 ? 'Termin' : 'Termine'} ${span}, wenn du zu jedem Termin gehst. Dein letztes Thema ist Thema ${last.topic} in ${LOCATIONS[last.loc].name}.`;
+  }
+
+  function renderAdjust() {
+    const box = $('adjustRows');
+    box.replaceChildren();
+    const now = new Date();
+    for (const key of Object.keys(LOCATIONS)) {
+      const loc = LOCATIONS[key];
+      const anchor = anchorFor(key);
+      const dates = nextClassDates(key, now, 6);
+      const known = anchor ? upcomingSessions(key, anchor, now, 6) : [];
+
+      const row = document.createElement('div');
+      row.className = 'adjust-row';
+      const label = document.createElement('strong');
+      label.textContent = `${loc.name} (${loc.dayText}):`;
+
+      const dateSel = document.createElement('select');
+      dateSel.id = `adjust-${key}-date`;
+      dateSel.setAttribute('aria-label', `Termin in ${loc.name}`);
+      dates.forEach(d => dateSel.add(new Option(`am ${shortDate(d)}`, iso(d))));
+
+      const topicSel = document.createElement('select');
+      topicSel.id = `adjust-${key}-topic`;
+      topicSel.setAttribute('aria-label', `Thema an diesem Termin in ${loc.name}`);
+      if (!anchor) topicSel.add(new Option('Thema ?', ''));
+      for (let t = 1; t <= THEORY_TOTAL; t++) topicSel.add(new Option(`Thema ${t}`, String(t)));
+
+      const sync = () => {
+        const s = known.find(x => iso(x.date) === dateSel.value);
+        topicSel.value = s ? String(s.topic) : '';
+      };
+      dateSel.addEventListener('change', sync);
+      sync();
+
+      const save = document.createElement('button');
+      save.type = 'button';
+      save.textContent = 'Speichern';
+      save.addEventListener('click', () => {
+        const topic = Number(topicSel.value);
+        if (!topic) { topicSel.focus(); return; }
+        stores.theorie.state.plan.anchors[key] = { date: dateSel.value, topic };
+        stores.theorie.persist();
+        afterPlanChange();
+        showToast(`Plan für ${loc.name} gespeichert`);
+      });
+
+      row.append(label, dateSel, document.createTextNode('ist'), topicSel, save);
+
+      if (stores.theorie.state.plan.anchors[key] && loc.anchor) {
+        const back = document.createElement('button');
+        back.type = 'button';
+        back.className = 'link';
+        back.textContent = 'Website-Plan nehmen';
+        back.addEventListener('click', () => {
+          delete stores.theorie.state.plan.anchors[key];
+          stores.theorie.persist();
+          afterPlanChange();
+          showToast(`Plan für ${loc.name} zurückgesetzt`);
+        });
+        row.append(back);
+      }
+      box.append(row);
+    }
+  }
+
+  function afterPlanChange() {
+    refreshSchedule();
+    renderAdjust();
+    if (activeKey === 'theorie') renderList();
+    renderPlan();
+  }
+
+  document.querySelectorAll('.chip').forEach(chip => chip.addEventListener('click', () => {
+    const plan = stores.theorie.state.plan;
+    if (plan.loc === chip.dataset.loc) return;
+    plan.loc = chip.dataset.loc;
+    stores.theorie.persist();
+    afterPlanChange();
+  }));
 
   // ---------- Konfetti ----------
   const Confetti = (() => {
@@ -831,41 +1249,54 @@
     return { burst };
   })();
 
-  // ---------- Liste aufbauen ----------
+  // ---------- Liste ----------
   const PENCIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
 
-  TOPICS.forEach((_, idx) => {
-    const id = idx + 1;
-    const li = document.createElement('li');
-    li.className = 'item';
-    li.style.setProperty('--i', idx);
-    li.innerHTML = `
-      <div class="topic" data-id="${id}">
-        <button class="check" type="button" role="checkbox" aria-checked="false">
-          <span class="num" aria-hidden="true">${id}</span>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
-        </button>
-        <div class="body">
-          <span class="tag">Als Nächstes</span>
-          <h2 class="title"></h2>
-          <p class="desc"></p>
-          <div class="meta"><div><p class="date"></p></div></div>
-        </div>
-        <button class="edit" type="button" aria-label="Thema ${id} umbenennen">${PENCIL}</button>
-      </div>`;
-    list.appendChild(li);
-  });
-
   const topicEl = id => list.querySelector(`.topic[data-id="${id}"]`);
-  const titleOf = id => state.names[id] || TOPICS[id - 1].title;
-  const doneCount = () => Object.keys(state.done).length;
+  const titleOf = id => state().names[id] || set().topics[id - 1].title;
+  const doneCount = () => Object.keys(state().done).length;
 
-  const dateFmt = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  // Theorie: offene Themen nach Termin, dann offene ohne Termin, dann erledigte
+  function listOrder() {
+    const ids = set().topics.map((_, i) => i + 1);
+    if (!set().hasPlan) return ids;
+    const done = state().done;
+    const dated = ids.filter(id => !done[id] && sched.byTopic[id]).sort((a, b) => sched.byTopic[a].start - sched.byTopic[b].start);
+    const undated = ids.filter(id => !done[id] && !sched.byTopic[id]);
+    return [...dated, ...undated, ...ids.filter(id => done[id])];
+  }
+
+  function renderList() {
+    list.replaceChildren();
+    listOrder().forEach((id, idx) => {
+      const li = document.createElement('li');
+      li.className = 'item';
+      li.style.setProperty('--i', idx);
+      li.innerHTML = `
+        <div class="topic" data-id="${id}">
+          <button class="check" type="button" role="checkbox" aria-checked="false">
+            <span class="num" aria-hidden="true">${id}</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+          </button>
+          <div class="body">
+            <span class="tag">Als Nächstes</span>
+            <span class="when" hidden></span>
+            <h2 class="title"></h2>
+            <p class="desc"></p>
+            <div class="meta"><div><p class="date"></p></div></div>
+          </div>
+          <button class="edit" type="button" aria-label="Thema ${id} umbenennen">${PENCIL}</button>
+        </div>`;
+      list.appendChild(li);
+    });
+    renderAll();
+  }
 
   function renderTopic(id) {
     const el = topicEl(id);
-    const doneAt = state.done[id];
-    const custom = state.names[id];
+    if (!el) return;
+    const doneAt = state().done[id];
+    const custom = state().names[id];
     el.classList.toggle('done', Boolean(doneAt));
 
     const check = el.querySelector('.check');
@@ -874,15 +1305,20 @@
 
     if (!el.classList.contains('editing')) el.querySelector('.title').textContent = titleOf(id);
     const desc = el.querySelector('.desc');
-    desc.textContent = custom ? '' : TOPICS[id - 1].desc;
-    desc.hidden = Boolean(custom);
+    desc.textContent = set().topics[id - 1].desc;
+    desc.hidden = Boolean(custom) && !set().keepDesc;
+
+    const when = el.querySelector('.when');
+    const s = set().hasPlan && sched.byTopic[id];
+    when.hidden = !s;
+    if (s) when.textContent = sessionText(s);
 
     // Datum beim Abwählen stehen lassen, damit es sauber wegklappt statt zu springen
-    if (doneAt) el.querySelector('.date').textContent = `✓ Erledigt am ${dateFmt.format(new Date(doneAt))}`;
+    if (doneAt) el.querySelector('.date').textContent = `✓ Erledigt am ${doneFmt.format(new Date(doneAt))}`;
   }
 
   function renderAll() {
-    for (let id = 1; id <= TOTAL; id++) renderTopic(id);
+    for (let id = 1; id <= total(); id++) renderTopic(id);
   }
 
   function replay(el, cls) {
@@ -914,18 +1350,18 @@
   }
 
   function statusText(n) {
-    const left = TOTAL - n;
-    if (n === 0) return 'Hak ab, was du in der Fahrstunde geschafft hast.';
-    if (n === TOTAL) return 'Alles erledigt. Bereit für die Prüfung! 🎉';
+    const left = total() - n;
+    if (n === 0) return set().hasPlan ? 'Hak ab, was du in der Theorie schon hattest.' : 'Hak ab, was du in der Fahrstunde geschafft hast.';
+    if (left === 0) return 'Alles erledigt. Bereit für die Prüfung! 🎉';
     if (left === 1) return 'Nur noch 1 Thema. Du packst das! 🔥';
-    if (n <= 3) return `Guter Start! Noch ${left} Themen.`;
-    if (n <= 7) return `Läuft bei dir! Noch ${left} Themen.`;
+    if (n <= total() / 4) return `Guter Start! Noch ${left} Themen.`;
+    if (n <= total() * 0.6) return `Läuft bei dir! Noch ${left} Themen.`;
     return `Fast geschafft! Noch ${left} Themen.`;
   }
 
   function updateProgress() {
     const n = doneCount();
-    const p = n / TOTAL;
+    const p = n / total();
 
     ringFg.style.strokeDashoffset = RING_CIRC * (1 - p);
     $('pct').textContent = `${Math.round(p * 100)} %`;
@@ -943,30 +1379,59 @@
       driveTimer = setTimeout(() => road.classList.remove('moving', 'back'), 1200);
     }
     road.style.setProperty('--p', p);
-    road.classList.toggle('finished', n === TOTAL);
+    road.classList.toggle('finished', n === total());
 
-    // Nächstes offenes Thema hervorheben
-    const nextIdx = TOPICS.findIndex((_, i) => !state.done[i + 1]);
-    list.querySelectorAll('.topic').forEach(el => {
-      el.classList.toggle('next', Number(el.dataset.id) === nextIdx + 1);
-    });
+    // Nächstes offenes Thema in der Liste hervorheben
+    const next = [...list.querySelectorAll('.topic')].find(el => !el.classList.contains('done'));
+    list.querySelectorAll('.topic').forEach(el => el.classList.toggle('next', el === next));
 
+    renderPlan();
     lastCount = n;
   }
 
+  function onStoreChanged(setKey) {
+    if (setKey === 'theorie') {
+      refreshSchedule();
+      renderAdjust();
+    }
+    if (setKey !== activeKey) return;
+    renderAll();
+    updateProgress();
+  }
+
+  // ---------- Tabs ----------
+  function switchTab(key, first) {
+    activeKey = key;
+    try { localStorage.setItem(TAB_KEY, key); } catch (e) { /* nur Komfort */ }
+    document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.set === key)));
+    $('heading').textContent = set().label;
+    $('total').textContent = `/${total()}`;
+    $('hint').textContent = set().hint;
+    hideToast();
+    disarmReset();
+    renderList();
+    showSaveInfo();
+    if (!first) updateProgress();
+  }
+
+  document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => {
+    if (tab.dataset.set !== activeKey) switchTab(tab.dataset.set);
+  }));
+
   // ---------- Abhaken ----------
   function toggle(id) {
+    const st = store();
     const el = topicEl(id);
 
-    if (state.done[id]) {
-      const prev = state.done[id];
-      delete state.done[id];
-      persist();
+    if (st.state.done[id]) {
+      const prev = st.state.done[id];
+      delete st.state.done[id];
+      st.persist();
       renderTopic(id);
       updateProgress();
       showToast(`Thema ${id} wieder offen`, () => {
-        state.done[id] = prev;
-        persist();
+        st.state.done[id] = prev;
+        st.persist();
         renderTopic(id);
         replay(el, 'pop');
         updateProgress();
@@ -974,8 +1439,8 @@
       return;
     }
 
-    state.done[id] = new Date().toISOString();
-    persist();
+    st.state.done[id] = new Date().toISOString();
+    st.persist();
     renderTopic(id);
     replay(el, 'pop');
     hideToast();
@@ -985,7 +1450,7 @@
     if (navigator.vibrate) navigator.vibrate(18);
 
     updateProgress();
-    if (doneCount() === TOTAL) setTimeout(celebrate, 700);
+    if (doneCount() === total()) setTimeout(celebrate, 700);
   }
 
   // .pop nach der längsten Teil-Animation (Ripple) wieder entfernen, sonst überschreibt sie später das Leuchten von .next
@@ -1010,6 +1475,8 @@
     // Klick auf den Stift während der Bearbeitung beendet sie nur (Blur), statt sie neu zu öffnen
     if (Date.now() - Number(el.dataset.closedAt || 0) < 400) return;
 
+    const st = store();
+    const topics = set().topics;
     const id = Number(el.dataset.id);
     const titleEl = el.querySelector('.title');
     const input = document.createElement('input');
@@ -1030,13 +1497,13 @@
       finished = true;
       if (save) {
         const value = input.value.trim().replace(/\s+/g, ' ');
-        if (!value || value === TOPICS[id - 1].title) delete state.names[id];
-        else state.names[id] = value;
-        persist();
+        if (!value || value === topics[id - 1].title) delete st.state.names[id];
+        else st.state.names[id] = value;
+        st.persist();
       }
       el.dataset.closedAt = Date.now();
       el.classList.remove('editing');
-      renderTopic(id);
+      if (st === store()) renderTopic(id);
     };
 
     input.addEventListener('keydown', e => {
@@ -1048,12 +1515,14 @@
 
   // ---------- Toast mit Rückgängig ----------
   const toast = $('toast');
+  const undoBtn = $('toastUndo');
   let toastTimer = 0;
   let undoFn = null;
 
   function showToast(text, onUndo) {
     $('toastText').textContent = text;
-    undoFn = onUndo;
+    undoFn = onUndo || null;
+    undoBtn.hidden = !undoFn;
     toast.classList.add('show');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(hideToast, 5000);
@@ -1065,7 +1534,7 @@
     undoFn = null;
   }
 
-  $('toastUndo').addEventListener('click', () => {
+  undoBtn.addEventListener('click', () => {
     const fn = undoFn;
     hideToast();
     if (fn) fn();
@@ -1073,7 +1542,6 @@
 
   // ---------- Zurücksetzen ----------
   // Zweistufig statt confirm(), das im Artifact-Viewer nicht angezeigt wird
-  const resetBtn = $('reset');
   let resetArmed = false;
   let resetTimer = 0;
 
@@ -1094,24 +1562,29 @@
       return;
     }
     disarmReset();
-    const prev = { ...state.done };
-    state.done = {};
-    persist();
+    const st = store();
+    const prev = { ...st.state.done };
+    st.state.done = {};
+    st.persist();
     renderAll();
     updateProgress();
-    showToast('Alle Häkchen entfernt', () => {
-      state.done = prev;
-      persist();
-      renderAll();
-      updateProgress();
+    showToast('Alle Haken entfernt', () => {
+      st.state.done = prev;
+      st.persist();
+      if (st === store()) {
+        renderAll();
+        updateProgress();
+      }
     });
   });
 
-  // ---------- Feier bei 12/12 ----------
+  // ---------- Feier ----------
   const overlay = $('overlay');
 
   function celebrate() {
-    if (doneCount() !== TOTAL) return;
+    if (doneCount() !== total()) return;
+    $('overlayTitle').textContent = set().done.title;
+    $('overlayText').textContent = set().done.text;
     overlay.hidden = false;
     requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('show')));
     $('overlayClose').focus();
@@ -1137,16 +1610,28 @@
 
   // Änderungen aus einem anderen Tab übernehmen
   window.addEventListener('storage', e => {
-    if (e.key !== STORAGE_KEY) return;
-    state = readLocal();
+    const st = Object.values(stores).find(s => SETS[s.key].storageKey === e.key);
+    if (!st) return;
+    st.state = st.readLocal();
+    onStoreChanged(st.key);
+  });
+
+  // Wer die App am nächsten Tag wieder öffnet, bekommt die Termine ab heute
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    refreshSchedule();
+    renderAdjust();
     renderAll();
-    updateProgress();
+    renderPlan();
   });
 
   // ---------- Start ----------
   ringFg.style.strokeDasharray = RING_CIRC;
   ringFg.style.strokeDashoffset = RING_CIRC;
-  renderAll();
+  refreshSchedule();
+  renderAdjust();
+  switchTab(activeKey, true);
+  renderPlan();
   // Zwei Frames warten, damit Ring, Zähler und Auto vom Start aus zum gespeicherten Stand animieren
   requestAnimationFrame(() => requestAnimationFrame(updateProgress));
   updateWarn();
